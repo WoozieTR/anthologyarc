@@ -471,7 +471,7 @@
         "movie"
       ],
       "filename": "providers/animecix.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4"
       ],
@@ -511,7 +511,7 @@
         "anime"
       ],
       "filename": "providers/anizm.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls"
@@ -552,7 +552,7 @@
         "anime"
       ],
       "filename": "providers/animom.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls"
@@ -593,7 +593,7 @@
         "anime"
       ],
       "filename": "providers/animeprax.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls"
@@ -634,7 +634,7 @@
         "anime"
       ],
       "filename": "providers/anizium.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4"
       ],
@@ -675,7 +675,7 @@
         "movie"
       ],
       "filename": "providers/asyaanimeleri.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -716,7 +716,7 @@
         "movie"
       ],
       "filename": "providers/sonanime.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4"
       ],
@@ -1516,7 +1516,7 @@
         "anime"
       ],
       "filename": "providers/seicode.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
