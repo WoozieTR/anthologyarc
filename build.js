@@ -130,6 +130,8 @@ async function main() {
 
     console.log(`\n✨ Done! ${success} built, ${failed} failed\n`);
 
+    if (!isWatch && failed > 0) process.exitCode = 1;
+
     if (isWatch) {
         console.log('👀 Watching src/ for changes... (Press Ctrl+C to stop)');
         fs.watch(srcDir, { recursive: true }, (eventType, filename) => {
