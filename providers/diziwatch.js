@@ -37,8 +37,10 @@ var require_config = __commonJS({
   "src/shared/config.js"(exports2, module2) {
     var CONFIG_URL = "https://raw.githubusercontent.com/falsisdev/anthology/main/config.json";
     var CONFIG_TTL_MS = 10 * 60 * 1e3;
+    var CONFIG_FAILURE_COOLDOWN_MS = 30 * 1e3;
     var _cfg = null;
-    var _cfgTime = 0;
+    var _cfgTime = null;
+    var _cfgInFlight = null;
     function _cfgLocalRead() {
       try {
         if (typeof require === "undefined") return null;
@@ -80,21 +82,28 @@ var require_config = __commonJS({
     function loadConfig2() {
       var now = Date.now();
       if (_cfg && now - _cfgTime < CONFIG_TTL_MS) return Promise.resolve(_cfg);
+      if (_cfgInFlight) return _cfgInFlight;
       var local = _cfgLocalRead();
       if (local && typeof local === "object") {
         _cfg = local;
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return Promise.resolve(_cfg);
       }
-      return _cfgFetch().then(function(c) {
+      if (!_cfg && _cfgTime !== null && now - _cfgTime < CONFIG_FAILURE_COOLDOWN_MS) {
+        return Promise.resolve(null);
+      }
+      _cfgInFlight = Promise.resolve().then(_cfgFetch).then(function(c) {
         _cfg = c && typeof c === "object" ? c : {};
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return _cfg;
       }).catch(function() {
         _cfg = null;
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return _cfg;
+      }).finally(function() {
+        _cfgInFlight = null;
       });
+      return _cfgInFlight;
     }
     function val2(pathStr) {
       if (!_cfg || !pathStr) return void 0;
