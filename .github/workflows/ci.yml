@@ -41,5 +41,8 @@ jobs:
       - name: Test provider build exit code
         run: node --test scripts/test_build_exit_code.js
 
+      - name: Test config cache and playability checks
+        run: node --test scripts/test_config_cache.test.js scripts/test_playability.test.js
+
       - name: Run Stremio addon validation
         run: npm run test:addon
