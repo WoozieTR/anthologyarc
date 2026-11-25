@@ -2,9 +2,9 @@ name: Build & Addon Validation CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, arc ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, arc ]
 
 jobs:
   validate:
@@ -37,6 +37,9 @@ jobs:
 
       - name: Verify build output matches committed bundles
         run: git diff --exit-code providers/
+
+      - name: Test provider build exit code
+        run: node --test scripts/test_build_exit_code.js
 
       - name: Run Stremio addon validation
         run: npm run test:addon
