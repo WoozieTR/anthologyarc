@@ -636,8 +636,11 @@ function parseDurationSec(str) {
   }
   return 0;
 }
-function matchesEpisode(videoTitle, season, episode, cumEpisode) {
+function matchesEpisode(videoTitle, targetTitle, season, episode, cumEpisode) {
   var norm = asciiFold(videoTitle);
+  var title = cleanTitle(targetTitle).split(" ").join("[^a-z0-9]+");
+  var separator = "[^a-z0-9]*";
+  var seasonLabel = "(?:[1-9]\\d?\\s*\\.?\\s*(?:sezon|season)" + separator + ")?";
   var epCandidates = [episode];
   if (cumEpisode && cumEpisode !== episode) {
     epCandidates.push(cumEpisode);
@@ -645,28 +648,17 @@ function matchesEpisode(videoTitle, season, episode, cumEpisode) {
   var matchedEp = false;
   for (var i = 0; i < epCandidates.length; i++) {
     var ep = epCandidates[i];
-    var epRegexes = [
-      new RegExp("(?:^|[^0-9])" + ep + "\\s*\\.?\\s*(?:bolum|bolumu|b|episode|ep)(?:[^0-9]|$)", "i"),
-      new RegExp("(?:bolum|bolumu|episode|ep)\\s*[:#-]?\\s*" + ep + "(?:[^0-9]|$)", "i"),
-      new RegExp("(?:^|[^0-9])b" + ep + "(?:[^0-9]|$)", "i"),
-      new RegExp("(?:^|\\s)-?\\s*" + ep + "\\.bolum", "i")
-    ];
-    if (epRegexes.some(function(r) {
-      return r.test(norm);
-    })) {
+    var episodeLabel = "(?:" + ep + "\\s*\\.?\\s*(?:bolumu?|episode|ep|b)|(?:bolumu?|episode|ep)\\s*[:#-]?\\s*" + ep + "|b" + ep + ")(?![a-z0-9])";
+    var titleFirst = new RegExp("(?:^|[|\u2013\u2014])" + separator + title + separator + seasonLabel + episodeLabel);
+    var episodeFirst = new RegExp("^" + separator + seasonLabel + episodeLabel + separator + title + "(?:" + separator + "$|\\s*[|\u2013\u2014-])");
+    if (titleFirst.test(norm) || episodeFirst.test(norm)) {
       matchedEp = true;
       break;
     }
   }
   if (!matchedEp) return false;
-  if (season > 1) {
-    var otherSeasonRegex = /(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i;
-    var sMatch = norm.match(otherSeasonRegex);
-    if (sMatch && parseInt(sMatch[1], 10) !== season) {
-      return false;
-    }
-  }
-  return true;
+  var sMatch = norm.match(/(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i);
+  return !sMatch || parseInt(sMatch[1], 10) === Number(season);
 }
 var KNOWN_CHANNELS = {
   "arzu film": "2.1M Abone",
@@ -724,15 +716,9 @@ function formatNumberCompact(n) {
   return String(num);
 }
 function matchesTitle(videoTitle, targetTitle) {
-  var vNorm = asciiFold(videoTitle).toLowerCase();
-  var tNorm = asciiFold(targetTitle).toLowerCase();
-  var tWords = tNorm.split(/\s+/).filter(function(w) {
-    return w.length > 1;
-  });
-  var allWords = tWords.length > 0 && tWords.every(function(w) {
-    return new RegExp("\\b" + w + "\\b", "i").test(vNorm);
-  });
-  if (!allWords) return false;
+  var vNorm = cleanTitle(videoTitle);
+  var tNorm = cleanTitle(targetTitle);
+  if (!tNorm || (" " + vNorm + " ").indexOf(" " + tNorm + " ") === -1) return false;
   var spinOffs = ["pusu", "teror", "gladio", "irak", "filistin", "vatan"];
   for (var s = 0; s < spinOffs.length; s++) {
     var sp = spinOffs[s];
@@ -1052,7 +1038,7 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
           seenVid[vid.id] = true;
           if (vid.durationSec > 0 && vid.durationSec < minDuration) continue;
           if (!matchesTitle(vid.title, targetTitle)) continue;
-          if (isSeries && !matchesEpisode(vid.title, sNum, eNum, cumEpisode)) continue;
+          if (isSeries && !matchesEpisode(vid.title, targetTitle, sNum, eNum, cumEpisode)) continue;
           candidateVideos.push(vid);
           if (candidateVideos.length >= 4) break;
         }

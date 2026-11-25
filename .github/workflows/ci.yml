@@ -44,5 +44,8 @@ jobs:
       - name: Test config cache and playability checks
         run: node --test scripts/test_config_cache.test.js scripts/test_playability.test.js
 
+      - name: Test content matching offline
+        run: node --test scripts/test_content_matching.test.js
+
       - name: Run Stremio addon validation
         run: npm run test:addon
