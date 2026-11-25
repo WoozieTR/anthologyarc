@@ -657,14 +657,8 @@ function matchesEpisode(videoTitle, targetTitle, season, episode, cumEpisode) {
     }
   }
   if (!matchedEp) return false;
-  if (season > 1) {
-    var otherSeasonRegex = /(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i;
-    var sMatch = norm.match(otherSeasonRegex);
-    if (sMatch && parseInt(sMatch[1], 10) !== season) {
-      return false;
-    }
-  }
-  return true;
+  var sMatch = norm.match(/(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i);
+  return !sMatch || parseInt(sMatch[1], 10) === Number(season);
 }
 var KNOWN_CHANNELS = {
   "arzu film": "2.1M Abone",

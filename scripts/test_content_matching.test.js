@@ -79,6 +79,15 @@ test('YouTube accepts the requested series before or after the episode marker', 
     assert.deepEqual(streams.map((stream) => stream.ytId), ['fixture-0', 'fixture-1']);
 });
 
+test('YouTube rejects an explicit season 2 label when season 1 is requested', async () => {
+    const getStreams = youtube([
+        'Yeraltı 2. Sezon 1. Bölüm',
+        'Yeraltı 1. Sezon 1. Bölüm'
+    ], { title: 'Yeraltı' });
+    const streams = await getStreams('901', 'series', 1, 1);
+    assert.deepEqual(streams.map((stream) => stream.ytId), ['fixture-1']);
+});
+
 test('YouTube retains matching cumulative episodes and rejects known spin-offs', async () => {
     const getStreams = youtube([
         'Kurtlar Vadisi Pusu 21. Bölüm',

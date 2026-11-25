@@ -136,16 +136,9 @@ function matchesEpisode(videoTitle, targetTitle, season, episode, cumEpisode) {
 
     if (!matchedEp) return false;
 
-    // If season > 1, check that an explicitly different season is not mentioned
-    if (season > 1) {
-        var otherSeasonRegex = /(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i;
-        var sMatch = norm.match(otherSeasonRegex);
-        if (sMatch && parseInt(sMatch[1], 10) !== season) {
-            return false;
-        }
-    }
-
-    return true;
+    // Unlabeled episodes can still match by cumulative episode number.
+    var sMatch = norm.match(/(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i);
+    return !sMatch || parseInt(sMatch[1], 10) === Number(season);
 }
 
 // ── Popüler Türk Kanalları Abone Veritabanı (0ms Ağ Gecikmesi) ──────────────
