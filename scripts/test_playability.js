@@ -1,63 +1,122 @@
 const manifest = require("../manifest.json");
 const path = require("path");
 
+const SAMPLE_BYTES = 4096;
+const REQUEST_TIMEOUT_MS = 6000;
+
+function inspectSample(sample) {
+  if (!sample.length) return { outcome: "failed", reason: "Empty body" };
+
+  const text = sample.toString("utf8").trimStart();
+  if (/^(?:<!doctype\s+html\b|<html\b|<head\b|<body\b|\{|\[)/i.test(text)) {
+    return { outcome: "failed", reason: "HTML or JSON body" };
+  }
+  if ((/^#EXTM3U[ \t]*\r?\n/.test(text) && /^#EXT-X-[A-Z0-9-]+[:\r\n]/m.test(text)) ||
+      /^(?:<\?xml[^?]*\?>\s*)?<MPD(?=[\s>])/.test(text)) {
+    return { outcome: "media", reason: "Media manifest signature" };
+  }
+
+  const bytes = sample.toString("hex", 0, 4);
+  if ((sample.length >= 12 && sample.toString("latin1", 4, 8) === "ftyp") ||
+      bytes === "1a45dfa3" || // WebM / Matroska
+      bytes === "4f676753" || // Ogg
+      bytes === "664c6143" || // FLAC
+      (sample[0] === 0x47 && sample[188] === 0x47 && sample[376] === 0x47)) {
+    return { outcome: "media", reason: "Binary media signature" };
+  }
+  return { outcome: "unverified", reason: "Unknown media signature" };
+}
+
 async function checkHttp(url, headers = {}) {
-  // Bazı CDN'ler (video.sibnet.ru, dv..sibnet.ru) HEAD/405/400 döner ama
-  // GET+Range ile 206 verir. Bazıları (bcdn.hakunaymatata.com) browser UA
-  // ile 428 "Precondition Required" döner; o yüzden stream'in kendi
-  // header'ları önce, browser UA yedek olarak sonra denenir.
+  const requestHeaders = new Headers(headers || {});
+  requestHeaders.set("Range", `bytes=0-${SAMPLE_BYTES - 1}`);
 
-  const withRange = (h) => Object.assign({}, h, { "Range": "bytes=0-131072" });
-  const mediaLike = (ct) => /video|mp4|mpegurl|matroska|octet-stream|m4v|dash|\/xml|audio/i.test(ct || "");
-
-  async function tryOnce(h, withUa) {
-    const hdrs = Object.assign({}, h);
-    if (withUa && !(hdrs["User-Agent"] || hdrs["user-agent"])) {
-      hdrs["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
-    }
-    // 1) HEAD
+  async function probe() {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let response;
+    let reader;
     try {
-      const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 5000);
-      const res = await fetch(url, { method: "HEAD", headers: hdrs, signal: c.signal });
-      clearTimeout(t);
-      if (res.ok || res.status === 206) {
-        return { ok: true, status: res.status, type: res.headers.get("content-type") };
+      response = await fetch(url, { headers: requestHeaders, signal: controller.signal });
+      const { status } = response;
+      const type = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      if (!response.ok) {
+        const outcome = status === 404 || status === 410 ? "failed" : "unverified";
+        return { outcome, status, reason: type };
       }
-    } catch (e) { /* fallback GET */ }
-    // 2) GET + Range
-    try {
-      const c2 = new AbortController();
-      const t2 = setTimeout(() => c2.abort(), 6000);
-      const res2 = await fetch(url, { method: "GET", headers: withRange(hdrs), signal: c2.signal });
-      clearTimeout(t2);
-      const ok2 = res2.ok || res2.status === 206;
-      const ct = res2.headers.get("content-type") || "";
-      const hasContentRange = !!res2.headers.get("content-range");
-      const lenHeader = res2.headers.get("content-length");
-      let mediaOk = ok2 && (hasContentRange || mediaLike(ct) || !ct);
-      if (mediaOk && lenHeader === "0") mediaOk = false;
-      await res2.body?.cancel?.();
-      return { ok: mediaOk, status: res2.status, type: ct, mediaOk };
+      if (!response.body || response.headers.get("content-length") === "0") {
+        return { outcome: "failed", status, reason: "Empty body" };
+      }
+      if (type === "text/html" || type === "application/xhtml+xml" ||
+          type.endsWith("/json") || type.endsWith("+json")) {
+        return { outcome: "failed", status, reason: type };
+      }
+
+      reader = response.body.getReader();
+      const sample = Buffer.alloc(SAMPLE_BYTES);
+      let length = 0;
+      while (length < sample.length) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = value.subarray(0, sample.length - length);
+        sample.set(chunk, length);
+        length += chunk.length;
+      }
+
+      return { status, ...inspectSample(sample.subarray(0, length)) };
     } catch (err) {
-      return { ok: false, status: err.name === "AbortError" ? "TIMEOUT" : "ERR", error: err.message };
+      return { outcome: "unverified", status: controller.signal.aborted ? "TIMEOUT" : "ERR", reason: err.message };
+    } finally {
+      clearTimeout(timeout);
+      // Stop reading even when the server ignores Range or the read fails.
+      if (reader) {
+        reader.cancel().catch(() => {});
+        reader.releaseLock();
+      } else {
+        response?.body?.cancel().catch(() => {});
+      }
+      controller.abort();
     }
   }
 
-  const first = await tryOnce(headers || {}, false);
-  if (first.ok) return first;
-  // Yedek: browser UA ekle (bazı CDN'ler UA istiyor)
-  const second = await tryOnce(headers || {}, true);
+  const first = await probe();
+  if (first.outcome === "media" || requestHeaders.has("User-Agent")) return first;
+
+  // Some CDNs require a browser user agent.
+  requestHeaders.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+  const second = await probe();
+  if (second.outcome === "unverified" && first.outcome === "failed") return first;
   return second;
 }
 
-(async () => {
-  console.log("=== COMPREHENSIVE STREAM PLAYABILITY TEST ===");
+async function checkStreams(streams) {
+  const counts = { media: 0, unverified: 0, failed: 0 };
+  const details = {};
+  const sample = streams.slice(0, 3);
+  for (const stream of sample) {
+    const check = stream.ytId
+      ? { outcome: "unverified", reason: `YouTube (${stream.ytId})` }
+      : stream.url
+        ? await checkHttp(stream.url, stream.headers)
+        : { outcome: "unverified", reason: "No URL to check" };
+    counts[check.outcome]++;
+    details[check.outcome] ??= check.status
+      ? `HTTP ${check.status}${check.reason ? ` (${check.reason})` : ""}`
+      : check.reason;
+  }
+
+  const outcome = counts.media ? "media" : counts.unverified ? "unverified" : "failed";
+  const status = { media: "HTTP MEDIA FOUND", unverified: "UNVERIFIED", failed: "HTTP CHECK FAILED" };
+  return { ...counts, checked: sample.length, status: status[outcome], details: details[outcome] };
+}
+
+async function main() {
+  console.log("=== STREAM HTTP MEDIA CHECK ===");
   const testResults = [];
 
   for (const scraper of manifest.scrapers) {
     if (scraper.enabled === false) {
-      testResults.push({ id: scraper.id, name: scraper.name, count: 0, playable: 0, status: "SKIPPED ⏭️", details: "Disabled in manifest" });
+      testResults.push({ id: scraper.id, name: scraper.name, count: 0, status: "SKIPPED ⏭️", details: "Disabled in manifest" });
       console.log(`[${scraper.name}] ⏭️ SKIPPED (disabled)`);
       continue;
     }
@@ -118,44 +177,16 @@ async function checkHttp(url, headers = {}) {
 
       const streamList = Array.isArray(streams) ? streams : (streams && streams.streams ? streams.streams : []);
       if (streamList.length === 0) {
-        testResults.push({ id: scraper.id, name: scraper.name, count: 0, playable: 0, status: "NO_STREAMS ❌" });
+        testResults.push({ id: scraper.id, name: scraper.name, count: 0, status: "NO_STREAMS ❌" });
         console.log(`[${scraper.name}] ❌ NO STREAMS`);
         continue;
       }
 
-      let playableCount = 0;
-      let firstCheck = null;
-
-      for (let i = 0; i < Math.min(streamList.length, 3); i++) {
-        const s = streamList[i];
-        if (s.ytId) {
-          playableCount++;
-          if (!firstCheck) firstCheck = `YouTube (${s.ytId})`;
-          continue;
-        }
-        if (!s.url) continue;
-        const check = await checkHttp(s.url, s.headers || {});
-        if (check.ok || check.status === 200 || check.status === 206) {
-          playableCount++;
-          if (!firstCheck) firstCheck = `HTTP ${check.status} (${check.type || "ok"})`;
-        } else {
-          if (!firstCheck) firstCheck = `HTTP ${check.status} (${s.url.slice(0, 40)}...)`;
-        }
-      }
-
-      const isPlayable = playableCount > 0;
-      testResults.push({
-        id: scraper.id,
-        name: scraper.name,
-        count: streamList.length,
-        playable: playableCount,
-        status: isPlayable ? "PLAYABLE ✅" : "BLOCKED / BROKEN ❌",
-        details: firstCheck || "No check"
-      });
-
-      console.log(`[${scraper.name}] ${isPlayable ? "✅" : "❌"} (Playable: ${playableCount}/${streamList.length}) | ${firstCheck}`);
+      const check = await checkStreams(streamList);
+      testResults.push({ id: scraper.id, name: scraper.name, count: streamList.length, ...check });
+      console.log(`[${scraper.name}] ${check.status} (HTTP media: ${check.media}/${check.checked}) | ${check.details}`);
     } catch (e) {
-      testResults.push({ id: scraper.id, name: scraper.name, count: 0, playable: 0, status: "ERROR ❌", details: e.message });
+      testResults.push({ id: scraper.id, name: scraper.name, count: 0, status: "ERROR ❌", details: e.message });
       console.log(`[${scraper.name}] ❌ ERROR: ${e.message}`);
     }
   }
@@ -164,10 +195,14 @@ async function checkHttp(url, headers = {}) {
   console.table(testResults);
   console.log("==========================================");
 
-  const failures = testResults.filter(r => r.status.includes("NO_STREAMS") || r.status.includes("BLOCKED") || r.status.includes("ERROR"));
+  const failures = testResults.filter(r => r.status.includes("NO_STREAMS") || r.status === "HTTP CHECK FAILED" || r.status.includes("ERROR"));
+  const unverified = testResults.filter(r => r.status === "UNVERIFIED").length;
+  console.log(`HTTP checks found media signatures only. Playback was not tested. Providers with unverified results: ${unverified}.`);
   if (failures.length > 0) {
-    console.error(`\n❌ PLAYABILITY TEST: ${failures.length} provider(s) failed:`, failures.map(f => `${f.name} (${f.status})`).join(", "));
-    process.exit(1);
+    console.error(`\n❌ HTTP MEDIA CHECK: ${failures.length} provider(s) failed:`, failures.map(f => `${f.name} (${f.status})`).join(", "));
+    process.exitCode = 1;
   }
-  console.log(`\n🎉 SUCCESS: All active providers (${testResults.filter(r => !r.status.includes("SKIPPED")).length}) are playable!`);
-})();
+}
+
+if (require.main === module) main();
+module.exports = { checkHttp, checkStreams };
