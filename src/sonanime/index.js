@@ -21,6 +21,7 @@ function cfgReady() {
 
 var BASE_URL = 'https://sonanime.com';
 var API_BASE = 'https://api.sonanime.com';
+var TMDB_ANIMATION_GENRE_ID = 16;
 var TMDB_API_KEY = '500330721680edb6d5f7f12ba7cd9023';
 
 var DEFAULT_HEADERS = {
@@ -87,6 +88,7 @@ async function resolveTmdbInfo(id, mediaType) {
 
     var numericId = null;
     var titles = [];
+    var genres = [];
 
     if (cleanId.indexOf('tt') === 0) {
       var findData = await fetchJson('https://api.themoviedb.org/3/find/' + cleanId + '?api_key=' + TMDB_API_KEY + '&external_source=imdb_id', 6000);
@@ -112,6 +114,7 @@ async function resolveTmdbInfo(id, mediaType) {
       // İngilizce / ana başlık
       var enData = await fetchJson('https://api.themoviedb.org/3/' + type + '/' + numericId + '?api_key=' + TMDB_API_KEY, 6000);
       if (enData) {
+        if (Array.isArray(enData.genres)) genres = enData.genres;
         if (enData.name) titles.push(enData.name);
         if (enData.title) titles.push(enData.title);
         if (enData.original_name) titles.push(enData.original_name);
@@ -121,6 +124,7 @@ async function resolveTmdbInfo(id, mediaType) {
       // Türkçe başlık
       var trData = await fetchJson('https://api.themoviedb.org/3/' + type + '/' + numericId + '?api_key=' + TMDB_API_KEY + '&language=tr-TR', 6000);
       if (trData) {
+        if (!genres.length && Array.isArray(trData.genres)) genres = trData.genres;
         if (trData.name) titles.push(trData.name);
         if (trData.title) titles.push(trData.title);
       }
@@ -143,9 +147,9 @@ async function resolveTmdbInfo(id, mediaType) {
       }
     }
 
-    return { numericId: numericId ? parseInt(numericId) : null, titles: uniqueTitles };
+    return { numericId: numericId ? parseInt(numericId) : null, titles: uniqueTitles, genres: genres };
   } catch (e) {
-    return { numericId: null, titles: [] };
+    return { numericId: null, titles: [], genres: [] };
   }
 }
 
@@ -155,8 +159,8 @@ async function resolveTmdbInfo(id, mediaType) {
 async function searchSonAnime(titles, targetTmdb, isMovie) {
   if (!titles || !titles.length) return null;
 
-  var seenSlugs = {};
-  var candidateList = [];
+  var cleanTitles = titles.map(cleanStr).filter(Boolean);
+  var titleMatch = null;
 
   for (var i = 0; i < titles.length; i++) {
     var q = titles[i];
@@ -165,49 +169,22 @@ async function searchSonAnime(titles, targetTmdb, isMovie) {
       for (var k = 0; k < searchRes.length; k++) {
         var item = searchRes[k];
         if (!item || !item.anime_link) continue;
+        if (isMovie !== (item.anime_type === 'movie')) continue;
 
         // Birebir TMDB ID eşleşmesi bulunduysa derhal döndür
         if (targetTmdb && item.tmdb_id && parseInt(item.tmdb_id) === targetTmdb) {
           return item;
         }
 
-        if (!seenSlugs[item.anime_link]) {
-          seenSlugs[item.anime_link] = true;
-          candidateList.push({ item: item, query: q });
+        if (!titleMatch && (cleanTitles.indexOf(cleanStr(item.anime_name)) !== -1 ||
+            cleanTitles.indexOf(cleanStr(item.anime_name_en)) !== -1)) {
+          titleMatch = item;
         }
       }
     }
   }
 
-  if (candidateList.length === 0) return null;
-
-  // Başlık benzerliği ve tip filtrelemesi
-  var bestItem = null;
-  var bestScore = -1;
-
-  for (var j = 0; j < candidateList.length; j++) {
-    var cand = candidateList[j];
-    var a = cand.item;
-    var cleanTarget = cleanStr(cand.query);
-    var name1 = cleanStr(a.anime_name || '');
-    var name2 = cleanStr(a.anime_name_en || '');
-
-    var score = 0;
-    if (name1 === cleanTarget || name2 === cleanTarget) score += 100;
-    else if (name1.indexOf(cleanTarget) !== -1 || cleanTarget.indexOf(name1) !== -1) score += 50;
-    else if (name2 && (name2.indexOf(cleanTarget) !== -1 || cleanTarget.indexOf(name2) !== -1)) score += 40;
-
-    var itemIsMovie = a.anime_type === 'movie';
-    if (isMovie && itemIsMovie) score += 20;
-    else if (!isMovie && !itemIsMovie) score += 20;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestItem = a;
-    }
-  }
-
-  return bestItem || candidateList[0].item;
+  return titleMatch;
 }
 
 /**
@@ -322,6 +299,9 @@ async function getStreams(id, mediaType, season, episode) {
     // TMDB / IMDb ID çözümleme
     var tmdbInfo = await resolveTmdbInfo(rawId, finalMediaType);
     if (!tmdbInfo.titles || !tmdbInfo.titles.length) return [];
+    if (tmdbInfo.genres.length && !tmdbInfo.genres.some(function (genre) {
+      return genre.id === TMDB_ANIMATION_GENRE_ID;
+    })) return [];
 
     var matchedAnime = await searchSonAnime(tmdbInfo.titles, tmdbInfo.numericId, !isTv);
     if (!matchedAnime || !matchedAnime.anime_link) return [];
