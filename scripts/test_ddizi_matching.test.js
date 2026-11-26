@@ -14,7 +14,7 @@ const otherVideoId = 'fixture0002';
 const video = 'https://media.fixture.invalid/360.mp4?token=fixture';
 const anchor = (href, title) => `<a href="${href}">${title}</a>`;
 
-function fixture(routes, player) {
+function fixture(routes, player, seasons = [{ season_number: 1, episode_count: 16 }]) {
     const candidates = typeof player === 'string' ? { [videoId]: player } : player;
     const module = { exports: {} };
     const requests = [];
@@ -36,7 +36,7 @@ function fixture(routes, player) {
                 return {
                     ...requireFromProvider(id),
                     resolveSeriesInfo: async () => ({
-                        title: 'Yeraltı', seasons: [{ season_number: 1, episode_count: 16 }]
+                        title: 'Yeraltı', seasons
                     })
                 };
             }
@@ -197,4 +197,49 @@ test('DDizi uses an explicit season on the anchor when the same series link has 
         [show]: anchor(episode, 'Yeraltı 2. Sezon 7. Bölüm')
     }, episode));
     assert.equal((await f.getStreams())[0]?.url, video);
+});
+
+test('DDizi requires complete previous season counts for unlabeled matches', async () => {
+    for (const [seasons, season, number] of [
+        [[], 2, 7],
+        [[{ season_number: 1, episode_count: 16 }], 3, 23],
+        [[{ season_number: 1, episode_count: 16 }, { season_number: 2 }], 3, 23]
+    ]) {
+        const episode = '/izle/123/yeralti-' + number + '-bolum';
+        const routes = episodePage({
+            '/arama/': anchor(show, 'Yeraltı'),
+            [show]: anchor(episode, number + '. Bölüm')
+        }, episode);
+        const f = fixture(routes, 'Yeraltı ' + number + '. Bölüm', seasons);
+        assert.equal((await f.getStreams(season, 7)).length, 0);
+        assert.ok(!f.requests.includes(episode));
+
+        const explicit = fixture({}, 'Yeraltı ' + season + '. Sezon 7. Bölüm', seasons);
+        assert.ok((await explicit.getStreams(season, 7)).some(stream => stream.ytId === videoId));
+
+        const explicitPath = '/izle/123/yeralti-' + season + '-sezon-7-bolum';
+        const matching = fixture(episodePage({
+            '/arama/': anchor(show, 'Yeraltı'),
+            [show]: anchor(explicitPath, '7. Bölüm')
+        }, explicitPath), undefined, seasons);
+        assert.equal((await matching.getStreams(season, 7))[0]?.url, video);
+    }
+});
+
+test('DDizi compares visible episode numbers with the episode link', async () => {
+    for (const [slug, label, accepted] of [
+        ['yeralti-23-bolum', '24. Bölüm', false],
+        ['yeralti-23-bolum', 'Bölüm 24', false],
+        ['yeralti-23-bolum', '7. Bölüm', false],
+        ['yeralti-23-bolum', '2. Sezon 7. Bölüm', true],
+        ['yeralti-2-sezon-7-bolum', '23. Bölüm', true]
+    ]) {
+        const episode = '/izle/123/' + slug;
+        const f = fixture(episodePage({
+            '/arama/': anchor(show, 'Yeraltı'),
+            [show]: anchor(episode, label)
+        }, episode));
+        assert.equal((await f.getStreams())[0]?.url, accepted ? video : undefined, label);
+        assert.equal(f.requests.includes(episode), accepted);
+    }
 });

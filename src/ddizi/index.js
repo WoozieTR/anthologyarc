@@ -102,7 +102,10 @@ function matchesYouTubeEpisode(videoTitle, title, season, episode, cumEpisode) {
     if (labeledSeason && Number(labeledSeason[1]) !== season) return false;
 
     // Without a season label, use the cumulative number when TMDB provides it.
-    const num = labeledSeason && episode !== cumEpisode ? '(?:' + episode + '|' + cumEpisode + ')' : cumEpisode;
+    if (!labeledSeason && cumEpisode === null) return false;
+    const num = labeledSeason
+        ? (cumEpisode !== null && episode !== cumEpisode ? '(?:' + episode + '|' + cumEpisode + ')' : episode)
+        : cumEpisode;
     const episodeLabel = '(?:' + num + '\\s*\\.?\\s*(?:bolumu?|episode|ep|b)' +
         '|(?:bolumu?|episode|ep)\\s*[:#-]?\\s*' + num + '|b' + num + ')(?![a-z0-9])';
     const seriesLabel = series.join('[^a-z0-9]+');
@@ -783,20 +786,19 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         if (searchTitles.length === 0) return [];
 
         let cumEpisode = episode;
-        if (season > 1 && Array.isArray(info.seasons) && info.seasons.length > 0) {
-            let sum = 0;
+        if (season > 1) {
+            const seasons = Array.isArray(info.seasons) ? info.seasons : [];
             for (let s = 1; s < season; s++) {
-                const sObj = info.seasons.find(x => x.season_number === s);
-                if (sObj && sObj.episode_count) {
-                    sum += sObj.episode_count;
+                const previous = seasons.find(entry => entry && entry.season_number === s);
+                if (!previous || !Number.isInteger(previous.episode_count) || previous.episode_count <= 0) {
+                    cumEpisode = null;
+                    break;
                 }
-            }
-            if (sum > 0) {
-                cumEpisode = sum + episode;
+                cumEpisode += previous.episode_count;
             }
         }
 
-        const candidateNums = (cumEpisode !== episode) ? [cumEpisode, episode] : [episode];
+        const candidateNums = cumEpisode !== null && cumEpisode !== episode ? [cumEpisode, episode] : [episode];
 
         for (const title of searchTitles) {
             const form = new URLSearchParams();
@@ -858,13 +860,21 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
                     if (!identity || !seriesKeys.includes(identity.series)) continue;
 
                     const label = asciiFold(ep[2].replace(/<[^>]+>/g, ' '));
-                    const labeled = label.match(/\b(\d+)\s*\.?\s*sezon\s*(\d+)\s*\.?\s*bolumu?\b/);
-                    if (labeled && (Number(labeled[1]) !== season || !candidateNums.includes(Number(labeled[2])))) continue;
+                    const labeledSeason = label.match(/\b(\d+)\s*\.?\s*sezon\b/);
+                    const labeledEpisode = label.match(/\b(\d+)\s*\.?\s*bolumu?\b/) ||
+                        label.match(/\bbolumu?\s*[:#-]?\s*(\d+)\b/);
+                    if (labeledSeason && Number(labeledSeason[1]) !== season) continue;
                     if (identity.season && identity.season !== season) continue;
 
+                    const hasSeason = identity.season || labeledSeason;
+                    if (labeledEpisode) {
+                        const number = Number(labeledEpisode[1]);
+                        // Different numbers need a verified cumulative/season-relative pair.
+                        if (number !== identity.episode && (!hasSeason || !candidateNums.includes(number))) continue;
+                    }
+
                     // Prefer the cumulative link. Local numbering needs explicit season evidence.
-                    if (identity.episode === cumEpisode ||
-                        (identity.episode === episode && (identity.season || labeled))) {
+                    if (identity.episode === cumEpisode || (identity.episode === episode && hasSeason)) {
                         links.push({ href: ep[1], episode: identity.episode });
                     }
                 }
