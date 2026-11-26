@@ -504,6 +504,14 @@ var HEADERS = {
   "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
   "Referer": BASE_URL + "/"
 };
+function diagnostic(stage, fields) {
+  try {
+    if (typeof console !== "undefined" && typeof console.log === "function") {
+      console.log("[TvDiziler] " + stage + " " + JSON.stringify(fields));
+    }
+  } catch (e) {
+  }
+}
 function safeFetch(url, options, ms) {
   options = options || {};
   ms = ms || 1e4;
@@ -674,17 +682,32 @@ function cumulativeEpisode(seasons, season, episode) {
 }
 function matchEpisode(episodes, keys, season, episode, cumEpisode) {
   let cumulativeMatch = null;
+  const counts = { origin: "episode_list", accepted: 0, rejected: 0, invalid_link: 0, series_mismatch: 0, number_mismatch: 0 };
   for (const entry of episodes) {
     const identity = parseEpisodeLink(entry.href);
-    if (!identity || !keys.includes(identity.series)) continue;
+    if (!identity || !keys.includes(identity.series)) {
+      counts.rejected++;
+      if (identity) counts.series_mismatch++;
+      else counts.invalid_link++;
+      continue;
+    }
     const labels = episodeLabels(asciiFold(entry.title));
     if (identity.season !== null) labels.seasons.push(identity.season);
     labels.episodes.push(identity.episode);
     if (entry.epNum) labels.episodes.push(entry.epNum);
-    if (!matchesEpisodeNumbers(labels, season, episode, cumEpisode)) continue;
-    if (labels.seasons.length > 0) return entry;
+    if (!matchesEpisodeNumbers(labels, season, episode, cumEpisode)) {
+      counts.rejected++;
+      counts.number_mismatch++;
+      continue;
+    }
+    counts.accepted++;
+    if (labels.seasons.length > 0) {
+      diagnostic("episode_match", counts);
+      return entry;
+    }
     if (!cumulativeMatch) cumulativeMatch = entry;
   }
+  diagnostic("episode_match", counts);
   return cumulativeMatch;
 }
 function getValidTmdbKey() {
@@ -695,6 +718,7 @@ function getValidTmdbKey() {
 }
 function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
   return __async(this, null, function* () {
+    const counts = { origin: "youtube_fallback", accepted: 0, rejected: 0, duration: 0, title_mismatch: 0 };
     try {
       var queries = [];
       if (season > 1) {
@@ -778,7 +802,15 @@ function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
                   ytId,
                   provider: "tvdiziler"
                 });
-                if (streams.length > 0) return streams;
+                if (streams.length > 0) {
+                  counts.accepted++;
+                  diagnostic("episode_match", counts);
+                  return streams;
+                }
+              } else {
+                counts.rejected++;
+                if (duration >= 900) counts.title_mismatch++;
+                else counts.duration++;
               }
             } catch (e) {
             }
@@ -788,6 +820,7 @@ function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
       }
     } catch (e) {
     }
+    diagnostic("episode_match", counts);
     return null;
   });
 }
@@ -1217,7 +1250,13 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         yield cfgReady();
         var epSlug = tmdbIdOrArgs.replace("tvdiziler:ep:", "");
         var epUrl = BASE_URL + "/" + epSlug.replace(/^\/+/, "");
-        return yield extractStreamsFromEpisodePage(epUrl);
+        var directStreams = yield extractStreamsFromEpisodePage(epUrl);
+        if (directStreams.length > 0) {
+          diagnostic("result", { origin: "direct_episode", count: directStreams.length });
+        } else {
+          diagnostic("empty_result", { reason: "direct_episode_empty" });
+        }
+        return directStreams;
       }
       var id = tmdbIdOrArgs;
       var season = parseInt(seasonNum) || 1;
@@ -1238,14 +1277,29 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
       var [info] = yield Promise.all([resolveTmdbInfo(id, mediaType), cfgReady()]);
       var searchTitles = seriesSearchTitles(info);
       if (nrm.kind === "title" && searchTitles.length === 0) searchTitles.push(String(id || "").trim());
-      if (searchTitles.length === 0) return [];
+      if (searchTitles.length === 0) {
+        diagnostic("empty_result", { reason: "missing_titles" });
+        return [];
+      }
       var cumEpisode = cumulativeEpisode(info.seasons, season, episode);
       for (var title of searchTitles) {
         var cleanQuery = cleanSeriesTitle(title);
         var cleanTarget = seriesKey(cleanQuery);
         if (!cleanTarget) continue;
         var results = yield searchTvDiziler(cleanQuery);
-        var matchedShow = results.find((result) => seriesKey(cleanSeriesTitle(result.title)) === cleanTarget);
+        var titleMismatch = 0;
+        var matchedShow = results.find((result) => {
+          if (seriesKey(cleanSeriesTitle(result.title)) === cleanTarget) return true;
+          titleMismatch++;
+          return false;
+        });
+        var missingSlug = matchedShow && !matchedShow.slug ? 1 : 0;
+        diagnostic("series_match", {
+          accepted: matchedShow && matchedShow.slug ? 1 : 0,
+          rejected: titleMismatch + missingSlug,
+          title_mismatch: titleMismatch,
+          missing_slug: missingSlug
+        });
         if (!matchedShow || !matchedShow.slug) continue;
         var seriesKeys = [cleanTarget, showSlugKey(matchedShow.slug)];
         var showUrl = BASE_URL + "/" + matchedShow.slug.replace(/^\/+/, "");
@@ -1276,18 +1330,24 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         if (targetEp) {
           var epUrl = BASE_URL + "/" + targetEp.href.replace(/^\/+/, "");
           var streams = yield extractStreamsFromEpisodePage(epUrl);
-          if (streams.length > 0) return streams;
+          if (streams.length > 0) {
+            diagnostic("result", { origin: "episode_list", count: streams.length });
+            return streams;
+          }
         }
       }
       if (searchTitles.length > 0) {
         var mainTitle = searchTitles[0];
         var ytStreams = yield resolveOfficialYouTubeFallback(mainTitle, season, episode, cumEpisode);
         if (ytStreams && ytStreams.length > 0) {
+          diagnostic("result", { origin: "youtube_fallback", count: ytStreams.length });
           return ytStreams;
         }
       }
+      diagnostic("empty_result", { reason: "no_streams" });
       return [];
     } catch (e) {
+      diagnostic("empty_result", { reason: "error" });
       return [];
     }
   });
