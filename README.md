@@ -10,7 +10,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Sürüm-1.8.40-blue?style=for-the-badge" alt="Sürüm 1.8.40" />
+    <img src="https://img.shields.io/badge/Sürüm-1.8.43-blue?style=for-the-badge" alt="Sürüm 1.8.43" />
     <img src="https://img.shields.io/badge/Eklenti-41_Aktif-3b82f6?style=for-the-badge" alt="41 Aktif Eklenti" />
     <img src="https://img.shields.io/badge/Lisans-MIT-green?style=for-the-badge" alt="MIT Lisansı" />
     <img src="https://img.shields.io/badge/Katalog-7_Canlı_Katalog-8b5cf6?style=for-the-badge" alt="7 Canlı TV Kataloğu" />
@@ -18,7 +18,6 @@
   </p>
 
   <p>
-    <a href="https://falsisdev.github.io/anthology">🌐 <strong>Web Sitesini Ziyaret Et</strong></a> &nbsp;|&nbsp;
     <a href="https://stremio-addons.net/addons/anthology">📦 <strong>Stremio-Addons.net Dizini</strong></a> &nbsp;|&nbsp;
     <a href="stremio://falsisdev.github.io/anthology/stremio/manifest.json">🚀 <strong>Stremio'ya Tek Tıkla Ekle</strong></a> &nbsp;|&nbsp;
     <a href="https://web.stremio.com/#/addons?addon=https%3A%2F%2Ffalsisdev.github.io%2Fanthology%2Fstremio%2Fmanifest.json">📱 <strong>Web Stremio'da Aç</strong></a> &nbsp;|&nbsp;

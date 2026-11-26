@@ -43,8 +43,8 @@ const server = http.createServer((req, res) => {
     }
 
     const parsedUrl = new URL(req.url, "http://localhost:" + PORT);
-    let pathname = decodeURIComponent(parsedUrl.pathname);
-    if (pathname === "/") pathname = "/index.html";
+    const requestedPath = decodeURIComponent(parsedUrl.pathname);
+    const pathname = requestedPath === "/" ? "/manifest.json" : requestedPath;
 
     const rootDir = path.resolve(__dirname);
     const filePath = path.resolve(rootDir, pathname.replace(/^\/+/, ""));
@@ -88,7 +88,6 @@ server.listen(PORT, () => {
     console.log("============================================================");
     console.log("📱 Nuvio Manifest URL (Cihaz/TV):  http://" + ip + ":" + PORT + "/manifest.json");
     console.log("💻 Yerel Manifest URL (Tarayici): http://localhost:" + PORT + "/manifest.json");
-    console.log("🌐 Web Arayuzu (Landing):        http://localhost:" + PORT + "/");
     console.log("============================================================");
     console.log("💡 Nuvio TV / Mobil test etmek icin:");
     console.log("   Nuvio -> Ayarlar -> Developer -> Plugin Tester");
