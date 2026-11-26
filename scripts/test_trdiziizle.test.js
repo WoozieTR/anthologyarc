@@ -98,15 +98,80 @@ test('YouTube MP4 without resolution metadata has no resolution label', async (t
     fetchFixtures(t, new Map(siteDown), {
         search: () => ['fixture0001'],
         videos: {
-            fixture0001: video(title + ' 3. Bölüm', {
-                formats: [{ url: mp4, mimeType: 'video/mp4' }]
+            fixture0001: video(title + ' 3. Bölüm | 1080p', {
+                formats: [
+                    { url: mp4, mimeType: 'video/mp4' },
+                    { url: 'https://fixture.invalid/1080p/video.mp4', mimeType: 'video/mp4', qualityLabel: 'hd1080' }
+                ]
             })
         }
     });
     const [stream] = await getStreams(title, 'tv', 1, 3);
     assert.equal(stream.url, mp4);
     assert.equal(stream.quality, undefined);
-    assert.doesNotMatch(stream.title, /1080p|720p/);
+    assert.doesNotMatch(stream.title, /\d+p/i);
+});
+
+test('YouTube selects the highest resolution from unordered progressive MP4 formats', async (t) => {
+    const best = 'https://fixture.invalid/best.mp4';
+    const mimeType = 'video/mp4; codecs="avc1.640028, mp4a.40.2"';
+    fetchFixtures(t, new Map(siteDown), {
+        search: () => ['fixture0001'],
+        videos: {
+            fixture0001: video(title + ' 3. Bölüm', {
+                hlsManifestUrl: hls,
+                formats: [
+                    { url: mp4, mimeType },
+                    { url: 'https://fixture.invalid/low.mp4', mimeType, qualityLabel: '360p' },
+                    { url: best, mimeType, qualityLabel: '1080p' },
+                    { url: 'https://fixture.invalid/mid.mp4', mimeType, qualityLabel: '720p60 HDR' }
+                ]
+            })
+        }
+    });
+    const streams = await getStreams(title, 'tv', 1, 3);
+    assert.deepEqual(streams.map(stream => [stream.url, stream.format, stream.isHls, stream.quality]), [
+        [best, 'mp4', false, '1080p'],
+        [hls, 'hls', true, undefined]
+    ]);
+});
+
+test('YouTube uses explicit height when the MP4 has no resolution label', async (t) => {
+    fetchFixtures(t, new Map(siteDown), {
+        search: () => ['fixture0001'],
+        videos: {
+            fixture0001: video(title + ' 3. Bölüm', {
+                formats: [
+                    { url: 'https://fixture.invalid/mid.mp4', mimeType: 'video/mp4', qualityLabel: '720p' },
+                    { url: mp4, mimeType: 'video/mp4', height: 1080 }
+                ]
+            })
+        }
+    });
+    const [stream] = await getStreams(title, 'tv', 1, 3);
+    assert.equal(stream.url, mp4);
+    assert.equal(stream.quality, undefined);
+    assert.doesNotMatch(stream.title, /\d+p/i);
+});
+
+test('YouTube excludes video-only and audio-only formats and leaves adaptive HLS available', async (t) => {
+    const videoOnly = { url: 'https://fixture.invalid/silent.mp4', mimeType: 'video/mp4; codecs="avc1.640028"', qualityLabel: '1080p' };
+    const noAudioChannels = { url: 'https://fixture.invalid/no-audio.mp4', mimeType: 'video/mp4', audioChannels: 0, qualityLabel: '1440p' };
+    const audioOnly = { url: 'https://fixture.invalid/audio.m4a', mimeType: 'audio/mp4; codecs="mp4a.40.2"' };
+    const progressive = { url: mp4, mimeType: 'video/mp4; codecs="avc1.640028, mp4a.40.2"', qualityLabel: '720p' };
+    fetchFixtures(t, new Map(siteDown), {
+        search: () => ['fixture0001', 'fixture0002'],
+        videos: {
+            fixture0001: video(title + ' 3. Bölüm', {
+                hlsManifestUrl: hls,
+                formats: [videoOnly, noAudioChannels, audioOnly, progressive],
+                adaptiveFormats: [{ ...progressive, url: 'https://fixture.invalid/adaptive.mp4', qualityLabel: '2160p' }]
+            }),
+            fixture0002: video(title + ' 4. Bölüm', { hlsManifestUrl: hls, formats: [videoOnly, audioOnly] })
+        }
+    });
+    assert.deepEqual((await getStreams(title, 'tv', 1, 3)).map(stream => stream.url), [mp4, hls]);
+    assert.deepEqual((await getStreams(title, 'tv', 1, 4)).map(stream => stream.url), [hls]);
 });
 
 test('direct episode IDs preserve iframe streams without claiming a resolution', async (t) => {

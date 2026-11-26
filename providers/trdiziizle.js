@@ -627,6 +627,24 @@ function matchesYouTubeEpisode(videoTitle, titles, season, episode) {
     return target && (target === before || target === after);
   });
 }
+function selectProgressiveMp4(formats) {
+  var best = null;
+  var bestHeight = -1;
+  for (var i = 0; i < formats.length; i++) {
+    var format = formats[i];
+    if (!format || typeof format.url !== "string" || !format.url || !/^video\/mp4(?:\s*;|$)/i.test(format.mimeType || "")) continue;
+    var codecs = /;\s*codecs\s*=\s*"?([^";]*)/i.exec(format.mimeType);
+    if (format.audioChannels === 0 || codecs && !/(?:^|,)\s*mp4a(?:\.[\w.]+)?\s*(?:,|$)/i.test(codecs[1])) continue;
+    var label = /^(\d{3,4})p(?:\d{2})?(?: HDR)?$/i.exec(format.qualityLabel || "");
+    var labelHeight = label ? Number(label[1]) : 0;
+    var height = Number.isSafeInteger(format.height) && format.height > 0 ? format.height : labelHeight;
+    if (height > bestHeight) {
+      best = { url: format.url, quality: labelHeight > 0 && labelHeight === height ? label[0] : "" };
+      bestHeight = height;
+    }
+  }
+  return best;
+}
 function resolveOfficialYouTubeFallback(titles, season, episode) {
   return __async(this, null, function* () {
     try {
@@ -685,17 +703,14 @@ function resolveOfficialYouTubeFallback(titles, season, episode) {
                     }
                   });
                 }
-                if (data.streamingData && data.streamingData.formats) {
-                  var formats = data.streamingData.formats.filter(function(f) {
-                    return f.url && (f.mimeType || "").indexOf("mp4") !== -1;
-                  });
-                  if (formats.length > 0) {
-                    var qualityLabel = formats[0].qualityLabel;
-                    var quality = /^\d{3,4}p(?:\d{2})?(?: HDR)?$/i.test(qualityLabel) ? qualityLabel : "";
+                if (data.streamingData && Array.isArray(data.streamingData.formats)) {
+                  var mp4 = selectProgressiveMp4(data.streamingData.formats);
+                  if (mp4) {
+                    var quality = mp4.quality;
                     var stream = {
                       name: "TrDizi\u0130zle",
                       title: "\u231C TrDizi\u0130zle \u231F | Resmi YouTube MP4" + (quality ? " (" + quality + ")" : ""),
-                      url: formats[0].url,
+                      url: mp4.url,
                       provider: "trdiziizle",
                       format: "mp4",
                       isHls: false,
