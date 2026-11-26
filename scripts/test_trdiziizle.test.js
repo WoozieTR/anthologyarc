@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { getStreams } = require('../src/trdiziizle');
+const { getCatalog, getStreams } = require('../src/trdiziizle');
 
 const title = 'Örnek Dizi';
 const base = require('../config.json').urls.series.trdiziizle.base;
@@ -34,6 +34,7 @@ function fetchFixtures(t, routes, youtube = {}, metadata) {
             throw new Error('No fixture for ' + url.pathname);
         }
         if (body instanceof Error) throw body;
+        if (body instanceof Response) return body;
         if (typeof body === 'number') return { ok: false, status: body };
         return { ok: true, status: 200, text: async () => body, json: async () => body };
     });
@@ -373,9 +374,9 @@ test('YouTube does not guess a cumulative episode when a previous season count i
 });
 
 test('failed searches distinguish WordPress candidates and YouTube rejection reasons', async (t) => {
-    for (const [status, searchHtml] of [
-        ['zero-candidates', '<p>No results</p>'],
-        ['search-error', 503],
+    for (const [status, searchHtml, httpDiagnostic] of [
+        ['zero-candidates', '<p>No results</p>', 'status=200 classification=html-no-recognized-markers'],
+        ['search-error', 503, 'status=503 classification=http-error'],
         ['title-rejected', '<article>' + link(seriesPage, 'Başka Yapım') + '</article>']
     ]) {
         await t.test(status, async (child) => {
@@ -393,10 +394,77 @@ test('failed searches distinguish WordPress candidates and YouTube rejection rea
                 }
             }, seriesMetadata);
             assert.deepEqual(await getStreams('123', 'tv', 2, 8), []);
-            assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
-            const message = log.mock.calls[0].arguments[0];
+            const messages = log.mock.calls.map(call => {
+                assert.equal(call.arguments.length, 1);
+                return call.arguments[0];
+            });
+            assert.deepEqual(messages.slice(0, -1), httpDiagnostic ?
+                ['[trdiziizle] wordpress-search ' + httpDiagnostic + ' candidateCount=0'] : []);
+            const message = messages.at(-1);
             assert.match(message, /^\[trdiziizle\] empty stage=youtube elapsedMs=\d+ cumulative=true cumulativeEpisode=24 wordpress=(?:zero-candidates|title-rejected|search-error) seasonPageErrors=0 searchErrors=0 playerErrors=0 shortCandidates=0 episodeMismatches=3 youtubeTitleRejections=1 youtubeSeasonRejections=1 youtubeEpisodeRejections=1 noPlayableFormats=0$/);
             assert.ok(message.includes('wordpress=' + status + ' '));
+        });
+    }
+});
+
+const privateFixture = 'private-fixture-token https://fixture.invalid/private';
+
+test('reachability classifies responses without changing whether WordPress is tried', async (t) => {
+    for (const [status, body, headers, classification, reachable] of [
+        [503, privateFixture, {}, 'http-error', false],
+        [403, privateFixture, {}, 'access-denied-or-challenge', false],
+        [503, privateFixture, { 'cf-mitigated': 'challenge' }, 'access-denied-or-challenge', false],
+        [204, null, {}, 'empty-response', false],
+        [200, '', {}, 'empty-response', false],
+        [200, '<title>Just a moment...</title>' + privateFixture, {}, 'access-denied-or-challenge', true],
+        [200, privateFixture, { 'content-type': 'application/json; fixture=' + privateFixture }, 'unexpected-content-type', true],
+        [200, '<html>' + privateFixture + '</html>', { 'content-type': 'text/html; charset=utf-8' }, 'html-no-recognized-markers', true]
+    ]) {
+        await t.test(classification + ' ' + status, async (child) => {
+            const log = child.mock.method(console, 'log', () => {});
+            const response = new Response(body, { status, headers });
+            const read = child.mock.method(response, 'text');
+            const routes = new Map([[base + '/', response]]);
+            const searchUrl = base + '/?s=' + encodeURIComponent(title);
+            if (reachable) routes.set(searchUrl, '<article></article>');
+            fetchFixtures(child, routes, { search: () => [] });
+
+            assert.deepEqual(await getStreams(title, 'tv', 1, 3), []);
+            assert.equal(read.mock.callCount(), status === 200 ? 1 : 0);
+            assert.equal(globalThis.fetch.mock.calls.filter(call => call.arguments[0] === searchUrl).length, Number(reachable));
+            assert.deepEqual(log.mock.calls.slice(0, -1).map(call => call.arguments), [
+                ['[trdiziizle] reachability status=' + status + ' classification=' + classification]
+            ]);
+        });
+    }
+});
+
+test('catalog WordPress search classifies anomalies and preserves parsing', async (t) => {
+    const article = '<article>' + link(seriesPage, title) + '</article>';
+    const heading = '<h2 class="entry-title">' + link(seriesPage, title) + '</h2>';
+    for (const [body, status, contentType, classification, candidateCount] of [
+        [privateFixture, 500, 'text/html', 'http-error', 0],
+        [privateFixture, 401, 'text/html', 'access-denied-or-challenge', 0],
+        ['   ', 200, 'text/html', 'empty-response', 0],
+        ['<title>Access Denied</title>' + article, 200, 'text/html', 'access-denied-or-challenge', 1],
+        [article, 200, 'application/json; fixture=' + privateFixture, 'unexpected-content-type', 1],
+        ['<html>' + privateFixture + '</html>', 200, 'text/html', 'html-no-recognized-markers', 0],
+        ['<article></article>', 200, 'text/html', null, 0],
+        [heading, 200, 'application/xhtml+xml', null, 1],
+        ['<html>' + ' '.repeat(16384) + heading + '<title>Access Denied</title></html>', 200, 'text/html', null, 1]
+    ]) {
+        await t.test((classification || 'recognized markers') + ' ' + status, async (child) => {
+            const log = child.mock.method(console, 'log', () => {});
+            const response = new Response(body, { status, headers: { 'content-type': contentType } });
+            const read = child.mock.method(response, 'text');
+            fetchFixtures(child, new Map([[base + '/?s=' + encodeURIComponent(title), response]]));
+
+            assert.deepEqual(await getCatalog({ search: title }), {
+                metas: candidateCount ? [{ id: 'trdiziizle:link:' + encodeURIComponent(seriesPage), type: 'series', name: title }] : []
+            });
+            assert.equal(read.mock.callCount(), status === 200 ? 1 : 0);
+            assert.deepEqual(log.mock.calls.map(call => call.arguments), classification ?
+                [['[trdiziizle] wordpress-search status=' + status + ' classification=' + classification + ' candidateCount=' + candidateCount]] : []);
         });
     }
 });

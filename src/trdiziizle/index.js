@@ -86,11 +86,55 @@ async function fetchText(url, opts, ms) {
     return await r.text();
 }
 
+// Inspect only a bounded prefix of the body already read by the caller.
+function logHttpDiagnostic(stage, response, accepted, body, candidateCount) {
+    try {
+        var status = response.status;
+        if (!Number.isInteger(status) || status < 100 || status > 599) return;
+        if (typeof console === 'undefined' || typeof console.log !== 'function') return;
+
+        var headers = response.headers;
+        var challenge = headers && typeof headers.get === 'function' && headers.get('cf-mitigated') === 'challenge';
+        var label;
+        if (status === 401 || status === 403 || challenge) {
+            label = 'access-denied-or-challenge';
+        } else if (status === 204 || status === 205) {
+            label = 'empty-response';
+        } else if (!accepted) {
+            label = 'http-error';
+        } else {
+            var sample = body.slice(0, 16384);
+            var contentType = headers && typeof headers.get === 'function' ? headers.get('content-type') : null;
+            var htmlType = contentType && /^\s*(?:text\/html|application\/xhtml\+xml)\s*(?:;|$)/i.test(contentType.slice(0, 256));
+            var markers = /<article(?=[\s/>])|<h[123]\b[^>]*\bclass="[^"]*(?:entry-title|post-title)[^"]*"/i.test(sample);
+            if (/<title\b[^>]*>\s*(?:access denied|forbidden|just a moment|attention required|verify (?:you are|you're) human)\b|\bcf-chl-/i.test(sample)) {
+                label = 'access-denied-or-challenge';
+            } else if (!body.length || (body.length === sample.length && !sample.trim())) {
+                label = 'empty-response';
+            } else if (contentType && !htmlType) {
+                label = 'unexpected-content-type';
+            } else if (!markers && !candidateCount && (htmlType || /^\s*<(?:!doctype\s+html\b|[a-z][\w:-]*(?=[\s/>]))/i.test(sample))) {
+                label = 'html-no-recognized-markers';
+            }
+        }
+        if (label) {
+            console.log('[trdiziizle] ' + stage + ' status=' + status + ' classification=' + label +
+                (candidateCount == null ? '' : ' candidateCount=' + candidateCount));
+        }
+    } catch (e) {
+        // Diagnostic metadata and logging must never affect provider behavior.
+    }
+}
+
 async function siteReachable() {
     try {
         var r = await fadeFetch(BASE_URL + '/', {}, 5000);
-        if (r.status !== 200) return false;
+        if (r.status !== 200) {
+            logHttpDiagnostic('reachability', r, false);
+            return false;
+        }
         var txt = await r.text();
+        logHttpDiagnostic('reachability', r, true, txt);
         if (!txt || txt.indexOf('window.park') !== -1 || txt.indexOf('parked') !== -1) return false;
         return true;
     } catch (e) {
@@ -300,10 +344,16 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
 async function wpSearch(term, diagnostics) {
     var q = encodeURIComponent(term);
     var response = await fadeFetch(BASE_URL + '/?s=' + q);
-    if (!response.ok) return [];
+    if (!response.ok) {
+        logHttpDiagnostic('wordpress-search', response, false, '', 0);
+        return [];
+    }
     var html = await response.text();
     if (diagnostics) diagnostics.wordpress = 'zero-candidates';
-    if (!html) return [];
+    if (!html) {
+        logHttpDiagnostic('wordpress-search', response, true, html, 0);
+        return [];
+    }
     var results = [];
     var re = /<article[\s\S]*?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
     var m;
@@ -319,6 +369,7 @@ async function wpSearch(term, diagnostics) {
             if (t2 && m[2]) results.push({ title: t2, url: m[2] });
         }
     }
+    logHttpDiagnostic('wordpress-search', response, true, html, results.length);
     return results;
 }
 
