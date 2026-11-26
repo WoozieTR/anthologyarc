@@ -626,6 +626,16 @@ function resolveYouTubeMp4(ytId) {
 function cleanSeriesTitle(title) {
   return String(title || "").replace(/\s*\(\d{4}\)\s*$/, "").trim();
 }
+function decodeSearchTitle(title) {
+  return title.replace(/&(?:nbsp|#([0-9]+)|#x([0-9a-f]+));/gi, (entity, decimal, hex) => {
+    if (decimal === void 0 && hex === void 0) return " ";
+    const codePoint = decimal === void 0 ? parseInt(hex, 16) : Number(decimal);
+    if (codePoint === 0 || codePoint > 1114111 || codePoint >= 55296 && codePoint <= 57343) {
+      return entity;
+    }
+    return codePoint === 160 ? " " : String.fromCodePoint(codePoint);
+  });
+}
 function seriesKey(title) {
   return asciiFold(title).replace(/[^a-z0-9]/g, "");
 }
@@ -1289,7 +1299,7 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         var results = yield searchTvDiziler(cleanQuery);
         var titleMismatch = 0;
         var matchedShow = results.find((result) => {
-          if (seriesKey(cleanSeriesTitle(result.title)) === cleanTarget) return true;
+          if (seriesKey(cleanSeriesTitle(decodeSearchTitle(result.title))) === cleanTarget) return true;
           titleMismatch++;
           return false;
         });

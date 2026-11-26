@@ -145,6 +145,18 @@ function cleanSeriesTitle(title) {
     return String(title || '').replace(/\s*\(\d{4}\)\s*$/, '').trim();
 }
 
+function decodeSearchTitle(title) {
+    return title.replace(/&(?:nbsp|#([0-9]+)|#x([0-9a-f]+));/gi, (entity, decimal, hex) => {
+        if (decimal === undefined && hex === undefined) return ' ';
+
+        const codePoint = decimal === undefined ? parseInt(hex, 16) : Number(decimal);
+        if (codePoint === 0 || codePoint > 0x10FFFF || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            return entity;
+        }
+        return codePoint === 0xA0 ? ' ' : String.fromCodePoint(codePoint);
+    });
+}
+
 function seriesKey(title) {
     return asciiFold(title).replace(/[^a-z0-9]/g, '');
 }
@@ -856,7 +868,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             var results = await searchTvDiziler(cleanQuery);
             var titleMismatch = 0;
             var matchedShow = results.find(result => {
-                if (seriesKey(cleanSeriesTitle(result.title)) === cleanTarget) return true;
+                if (seriesKey(cleanSeriesTitle(decodeSearchTitle(result.title))) === cleanTarget) return true;
                 titleMismatch++;
                 return false;
             });

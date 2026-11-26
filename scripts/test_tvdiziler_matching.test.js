@@ -16,7 +16,7 @@ const otherVideoId = 'fixture0002';
 const card = (href, title) => `<a href="${href.slice(1)}"><h2>${title}</h2></a>`;
 const row = (href, number, title) => `<a data-navigo class="truncate" href="${href}">Bölüm <data>${number}</data></a><h6><a itemprop="name">${title}</a></h6>`;
 
-function fixture({ cards, listing, href, candidates, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
+function fixture({ cards, listing, href, candidates, title = 'Yeraltı', seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
     const module = { exports: {} };
     const requests = [];
     const diagnostics = [];
@@ -30,7 +30,7 @@ function fixture({ cards, listing, href, candidates, seasons = [{ season_number:
             if (id === '../shared/turkish_series.js') {
                 return {
                     ...requireFromProvider(id),
-                    resolveSeriesInfo: async () => ({ title: 'Yeraltı', seasons })
+                    resolveSeriesInfo: async () => ({ title, seasons })
                 };
             }
             return requireFromProvider(id);
@@ -78,6 +78,39 @@ test('TvDiziler skips similar and unrelated series search results', async () => 
         const f = fixture({ cards: card(wrongShow, title), listing: row(href, 23, '23. Bölüm'), href });
         assert.equal((await f.getStreams()).length, 0, title);
         assert.ok(!f.requests.includes(wrongShow));
+    }
+});
+
+test('TvDiziler normalizes HTML entities before exact series matching', async () => {
+    const href = '/isik-sokagi-23-bolum';
+    const matchingShow = '/dizi/isik-sokagi-son-bolum-izle';
+    const wrongShow = '/dizi/isik-sokagi-dunyasi';
+    const wrongCard = card(wrongShow, '&#304;&#351;&#305;k&nbsp;Soka&#287;&#305;&nbsp;Dünyası');
+    const listing = row(href, 23, '23. Bölüm');
+
+    for (const encodedTitle of [
+        '&#304;&#351;&#305;k&#160;Soka&#287;&#305; (2026)',
+        '&#x130;&#x15F;&#X131;k&#x20;Soka&#x11F;&#x131;&nbsp;&#40;2026&#41;&nbsp;',
+        'Işık&nbsp;Sokağı&nbsp;(2026)',
+        'Işık\u00a0Sokağı\u00a0(2026)\u00a0'
+    ]) {
+        const f = fixture({
+            cards: wrongCard + card(matchingShow, encodedTitle), listing, href, title: 'Işık Sokağı'
+        });
+        assert.equal((await f.getStreams())[0]?.url, video, encodedTitle);
+        assert.ok(f.requests.includes(matchingShow));
+        assert.ok(!f.requests.includes(wrongShow));
+    }
+
+    for (const suffix of [' Dünyası', '&#x110000;', '&#xD800;', '&#999999999999999999999;']) {
+        const f = fixture({
+            cards: card(wrongShow, 'Işık&nbsp;Sokağı' + suffix), listing, href, title: 'Işık Sokağı'
+        });
+        assert.equal((await f.getStreams()).length, 0, suffix);
+        assert.ok(!f.requests.includes(wrongShow));
+        assert.ok(f.diagnostics.includes(
+            '[TvDiziler] series_match {"accepted":0,"rejected":1,"title_mismatch":1,"missing_slug":0}'
+        ));
     }
 });
 
