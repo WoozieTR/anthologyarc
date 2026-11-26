@@ -10,8 +10,10 @@ test('provider build exits nonzero when any provider fails', (t) => {
     t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
 
     const root = path.resolve(__dirname, '..');
-    fs.copyFileSync(path.join(root, 'build.js'), path.join(fixture, 'build.js'));
-    fs.copyFileSync(path.join(root, 'package.json'), path.join(fixture, 'package.json'));
+    for (const file of ['build.js', 'config.js', 'package.json']) {
+        fs.copyFileSync(path.join(root, file), path.join(fixture, file));
+    }
+    fs.writeFileSync(path.join(fixture, 'config.json'), '{}');
     const modules = path.dirname(path.dirname(require.resolve('esbuild/package.json')));
 
     fs.mkdirSync(path.join(fixture, 'src', 'valid'), { recursive: true });

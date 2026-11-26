@@ -9,6 +9,7 @@ module.exports = {
     tmdb_api_key: config.tmdb_api_key,
     urls: config.urls || {},
     defaults: config.defaults || {},
+    mediaApiProviders: config.mediaApiProviders === undefined ? [] : config.mediaApiProviders,
     getUrl: function (dotPath, fallback) {
         if (!dotPath) return fallback;
         var parts = String(dotPath).split('.');

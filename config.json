@@ -3,6 +3,7 @@
   "name": "Anthology",
   "version": "1.8.41",
   "description": "Anthology - Merkezi Eklenti, API, URL, Oynatıcı ve Sistem Yapılandırması",
+  "mediaApiProviders": [],
   "branding": {
     "name": "Anthology",
     "author": "falsisdev",
