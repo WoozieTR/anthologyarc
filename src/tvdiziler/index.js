@@ -890,7 +890,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
 
             var results = await searchTvDiziler(cleanQuery);
             var titleMismatch = 0;
-            var suffixMatch;
+            let suffixMatch;
             var matchedShow = results.find(result => {
                 const decoded = decodeSearchTitle(result.title);
                 const candidateTitle = cleanSeriesTitle(decoded);
