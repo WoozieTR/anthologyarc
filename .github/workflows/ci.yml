@@ -51,7 +51,7 @@ jobs:
         run: node --test scripts/test_parallel_config_tmdb.test.js
 
       - name: Test HTTP lifecycle offline
-        run: node --test scripts/test_http_lifecycle.test.js
+        run: node --test scripts/test_http_lifecycle.test.js scripts/test_shared_http.test.js
 
       - name: Test TMDB metadata resolution offline
         run: node --test scripts/test_turkish_series.test.js

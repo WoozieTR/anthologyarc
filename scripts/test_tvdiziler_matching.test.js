@@ -24,11 +24,14 @@ function fixture({ cards, listing, href, candidates, playerUrl = video, streamin
         module, AbortController, URL, URLSearchParams, setTimeout, clearTimeout,
         console: { log: message => diagnostics.push(message) },
         require(id) {
-            if (id === '../shared/http_request.js') {
-                const helper = requireFromProvider.resolve(id);
+            if (id === '../shared/http_request.js' || id === './http_deadline.js') {
+                const helper = path.resolve(__dirname, '../src/shared', path.basename(id));
                 const module = { exports: {} };
                 runInNewContext(readFileSync(helper, 'utf8'), {
-                    ...context, module, require: () => { throw new Error('Unexpected native module'); }
+                    ...context, module, require: child => {
+                        if (child === './http_deadline.js') return context.require(child);
+                        throw new Error('Unexpected native module');
+                    }
                 }, { filename: helper });
                 return module.exports;
             }
