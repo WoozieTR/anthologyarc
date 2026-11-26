@@ -123,13 +123,33 @@ function matchesEpisodeNumber(match, explicitSeason, defaultSeason, season, epis
     return (number === episode && (explicitSeason || defaultSeason === season)) || number === cumulative;
 }
 
+function findWPEpisodeUrl(html, listSeason, season, episode, cumulative) {
+    var links = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    var link;
+    while ((link = links.exec(html)) !== null) {
+        var label = asciiFold(decodeHtmlEntities(link[2].replace(/<[^>]+>/g, ' '))).trim();
+        var explicitSeason = label.match(seasonLabel);
+        if (explicitSeason) label = label.replace(explicitSeason[0], ' ').trim();
+        var match = label.match(episodeLabel);
+        if (!match && /bolum|episode/i.test(link[1])) match = label.match(/^(\d+)\.?$/);
+        if (matchesEpisodeNumber(match, explicitSeason, listSeason, season, episode, cumulative)) return link[1];
+    }
+    return '';
+}
+
 function matchesYouTubeEpisode(videoTitle, titles, season, episode, cumulative) {
     var label = asciiFold(videoTitle);
     var seasonMatch = label.match(seasonLabel);
     if (seasonMatch) label = label.replace(seasonMatch[0], ' ');
 
     var match = label.match(episodeLabel);
-    if (!matchesEpisodeNumber(match, seasonMatch, 1, season, episode, cumulative)) return false;
+    if (!match && !seasonMatch) {
+        var compact = label.match(/\bs(\d+)e(\d+)\s*$/);
+        if (!compact || Number(compact[1]) !== season || Number(compact[2]) !== episode) return false;
+        match = compact;
+    } else if (!matchesEpisodeNumber(match, seasonMatch, 1, season, episode, cumulative)) {
+        return false;
+    }
 
     var before = label.slice(0, match.index).trim().replace(/(?:[|–—]\s*)+$/, '');
     before = cleanTitle(before.split(/[|–—]/).pop());
@@ -165,15 +185,15 @@ function selectProgressiveMp4(formats) {
     return best;
 }
 
-async function resolveOfficialYouTubeFallback(titles, season, episode, cumulative) {
+async function resolveOfficialYouTubeFallback(titles, season, episode, cumulative, diagnostics) {
     try {
         var title = titles[0];
         var queries = [];
+        if (cumulative !== null) queries.push(title + ' ' + cumulative + '. Bölüm');
         if (season > 1) {
             queries.push(title + ' ' + season + '. Sezon ' + episode + '. Bölüm');
         }
         queries.push(title + ' ' + episode + '. Bölüm');
-        if (cumulative !== null) queries.push(title + ' ' + cumulative + '. Bölüm');
 
         var key = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
         for (var qIdx = 0; qIdx < queries.length; qIdx++) {
@@ -182,7 +202,10 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
                 var res = await fadeFetch('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), {
                     headers: { 'User-Agent': HEADERS['User-Agent'] }
                 }, 4000);
-                if (!res.ok) continue;
+                if (!res.ok) {
+                    diagnostics.searchErrors++;
+                    continue;
+                }
                 var html = await res.text();
                 var vidMatches = [];
                 var reVid = /"videoId":"([a-zA-Z0-9_-]{11})"/g;
@@ -206,12 +229,19 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
                                 videoId: ytId
                             })
                         }, 3500);
-                        if (!pRes.ok) continue;
+                        if (!pRes.ok) {
+                            diagnostics.playerErrors++;
+                            continue;
+                        }
                         var data = await pRes.json();
                         var duration = parseInt((data.videoDetails && data.videoDetails.lengthSeconds) || '0', 10);
                         var vTitle = (data.videoDetails && data.videoDetails.title) || '';
 
-                        if (duration >= 900 && matchesYouTubeEpisode(vTitle, titles, season, episode, cumulative)) {
+                        if (!(duration >= 900)) {
+                            diagnostics.shortCandidates++;
+                        } else if (!matchesYouTubeEpisode(vTitle, titles, season, episode, cumulative)) {
+                            diagnostics.episodeMismatches++;
+                        } else {
                             var streams = [];
                             if (data.streamingData && data.streamingData.hlsManifestUrl) {
                                 streams.push({
@@ -246,12 +276,13 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
                                 }
                             }
                             if (streams.length > 0) return streams;
+                            diagnostics.noPlayableFormats++;
                         }
-                    } catch (e) {}
+                    } catch (e) { diagnostics.playerErrors++; }
                 }
-            } catch (e) {}
+            } catch (e) { diagnostics.searchErrors++; }
         }
-    } catch (e) {}
+    } catch (e) { diagnostics.searchErrors++; }
     return [];
 }
 
@@ -477,7 +508,26 @@ async function getMeta(id) {
     }
 }
 
+function emptyStreams(stage, started, diagnostics) {
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+        console.log('[trdiziizle] empty stage=' + stage + ' elapsedMs=' + (Date.now() - started) +
+            ' cumulative=' + diagnostics.cumulative + ' wordpress=' + diagnostics.wordpress +
+            ' seasonPageErrors=' + diagnostics.seasonPageErrors +
+            ' searchErrors=' + diagnostics.searchErrors + ' playerErrors=' + diagnostics.playerErrors +
+            ' shortCandidates=' + diagnostics.shortCandidates +
+            ' episodeMismatches=' + diagnostics.episodeMismatches +
+            ' noPlayableFormats=' + diagnostics.noPlayableFormats);
+    }
+    return [];
+}
+
 async function getStreams(args) {
+    var started = Date.now();
+    var stage = 'arguments';
+    var diagnostics = {
+        cumulative: false, wordpress: 'skipped', seasonPageErrors: 0, searchErrors: 0, playerErrors: 0,
+        shortCandidates: 0, episodeMismatches: 0, noPlayableFormats: 0
+    };
     try {
         var tmdbId, mediaType = 'tv', seasonNum, episodeNum;
         if (args && typeof args === 'object' && !Array.isArray(args)) {
@@ -498,14 +548,19 @@ async function getStreams(args) {
         if (episodeNum == null && idNorm.episode > 0) episodeNum = idNorm.episode;
 
         if (raw.indexOf('trdiziizle:') === 0) {
+            stage = 'direct-episode';
             var link = raw.indexOf('trdiziizle:link:') === 0 ? raw.slice('trdiziizle:link:'.length) : decodeURIComponent(raw.slice('trdiziizle:'.length));
-            return await episodeStreams(link);
+            var direct = await episodeStreams(link);
+            return direct.length ? direct : emptyStreams(stage, started, diagnostics);
         }
 
         var season = seasonNum == null ? 1 : Number(seasonNum);
         var episode = episodeNum == null ? 1 : Number(episodeNum);
-        if (!Number.isSafeInteger(season) || season < 1 || !Number.isSafeInteger(episode) || episode < 1) return [];
+        if (!Number.isSafeInteger(season) || season < 1 || !Number.isSafeInteger(episode) || episode < 1) {
+            return emptyStreams(stage, started, diagnostics);
+        }
 
+        stage = 'metadata';
         var info;
         if (idNorm.kind === 'title') {
             info = { title: idNorm.id, origTitle: idNorm.id, aliases: [], kind: 'title', type: 'tv' };
@@ -513,47 +568,56 @@ async function getStreams(args) {
             info = await resolveSeriesInfo(raw, mediaType, TMDB_API_KEY);
             if (!info || (!info.title && !info.origTitle)) {
                 if (idNorm.kind === 'title') info = { title: idNorm.id, origTitle: idNorm.id, aliases: [], kind: 'title', type: 'tv' };
-                else return [];
+                else return emptyStreams(stage, started, diagnostics);
             }
         }
 
         var keywords = seriesSearchTitles(info);
         var cumulative = cumulativeEpisodeNumber(info.seasons, season, episode);
+        diagnostics.cumulative = cumulative !== null;
+        stage = 'wordpress';
+        diagnostics.wordpress = 'unavailable';
         if (await siteReachable()) {
+            diagnostics.wordpress = 'no-series';
             var matches = await wpSearch(keywords[0]);
             var hit = bestWPMatch(matches, keywords);
             if (hit) {
-                var wpCumulative = keywords.some(function (title) {
+                diagnostics.wordpress = 'no-series-page';
+                var exactSeries = keywords.some(function (title) {
                     return cleanTitle(title) === cleanTitle(hit.title);
-                }) ? cumulative : null;
+                });
+                var wpCumulative = exactSeries ? cumulative : null;
                 var list = await fetchText(hit.url);
                 if (list) {
+                    diagnostics.wordpress = 'no-episode';
                     var seasonRe = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-                    var seasonHtml = list;
-                    var listSeason = 1;
+                    var seasonHtml = '';
+                    var hasSeasonPage = false;
                     var m;
                     while (season > 1 && (m = seasonRe.exec(list)) !== null) {
                         var lbl = asciiFold(decodeHtmlEntities(m[2].replace(/<[^>]+>/g, ' ')));
                         var seasonMatch = lbl.match(seasonLabel);
                         if (!seasonMatch || Number(seasonMatch[1] || seasonMatch[2]) !== season) continue;
                         if (episodeLabel.test(lbl.replace(seasonMatch[0], ' ')) || !/bolum|izle/i.test(m[1])) continue;
-                        seasonHtml = await fetchText(m[1]);
-                        listSeason = season;
+                        hasSeasonPage = true;
+                        try {
+                            seasonHtml = await fetchText(m[1]);
+                        } catch (e) { diagnostics.seasonPageErrors++; }
                         break;
                     }
-                    if (seasonHtml && episodeNum != null) {
-                        var epRe = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-                        var em;
-                        while ((em = epRe.exec(seasonHtml)) !== null) {
-                            var lbl2 = asciiFold(decodeHtmlEntities(em[2].replace(/<[^>]+>/g, ' '))).trim();
-                            var epSeason = lbl2.match(seasonLabel);
-                            if (epSeason) lbl2 = lbl2.replace(epSeason[0], ' ').trim();
-                            var epMatch = lbl2.match(episodeLabel);
-                            if (!epMatch && /bolum|episode/i.test(em[1])) epMatch = lbl2.match(/^(\d+)\.?$/);
-                            if (!matchesEpisodeNumber(epMatch, epSeason, listSeason, season, episode, wpCumulative)) continue;
-                            var wpStreams = await episodeStreams(em[1]);
-                            if (wpStreams && wpStreams.length > 0) return wpStreams;
-                            break;
+                    if (episodeNum != null) {
+                        var seasonEpisodeUrl = seasonHtml && findWPEpisodeUrl(seasonHtml, season, season, episode, wpCumulative);
+                        if (seasonEpisodeUrl) {
+                            diagnostics.wordpress = 'no-streams';
+                            var seasonStreams = await episodeStreams(seasonEpisodeUrl);
+                            if (seasonStreams.length > 0) return seasonStreams;
+                        }
+                        var seriesEpisodeUrl = (!hasSeasonPage || exactSeries) &&
+                            findWPEpisodeUrl(list, 1, season, episode, wpCumulative);
+                        if (seriesEpisodeUrl && seriesEpisodeUrl !== seasonEpisodeUrl) {
+                            diagnostics.wordpress = 'no-streams';
+                            var seriesStreams = await episodeStreams(seriesEpisodeUrl);
+                            if (seriesStreams.length > 0) return seriesStreams;
                         }
                     }
                 }
@@ -561,11 +625,12 @@ async function getStreams(args) {
         }
 
         // Fallback: Resmi YouTube direkt akış çözücüsü (Behzat Ç., Kızılcık Şerbeti vb. yerli diziler)
-        var ytStreams = await resolveOfficialYouTubeFallback(keywords, season, episode, cumulative);
+        stage = 'youtube';
+        var ytStreams = await resolveOfficialYouTubeFallback(keywords, season, episode, cumulative, diagnostics);
         if (ytStreams && ytStreams.length > 0) return ytStreams;
-        return [];
+        return emptyStreams(stage, started, diagnostics);
     } catch (e) {
-        return [];
+        return emptyStreams(stage + '-exception', started, diagnostics);
     }
 }
 

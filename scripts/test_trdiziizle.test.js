@@ -33,6 +33,7 @@ function fetchFixtures(t, routes, youtube = {}, metadata) {
             unexpected.push(url.origin + url.pathname);
             throw new Error('No fixture for ' + url.pathname);
         }
+        if (body instanceof Error) throw body;
         return { ok: true, status: 200, text: async () => body, json: async () => body };
     });
     t.after(() => assert.deepEqual(unexpected, []));
@@ -238,6 +239,75 @@ const seriesMetadata = {
         { season_number: 1, episode_count: 16 }
     ]
 };
+
+test('YouTube accepts the exact compact season and episode and retains verified 360p', async (t) => {
+    fetchFixtures(t, new Map(siteDown), {
+        search: () => ['fixture0001', 'fixture0002', 'fixture0003', 'fixture0004'],
+        videos: {
+            fixture0001: video(title + ' S01E08'),
+            fixture0002: video(title + ' S02E09'),
+            fixture0003: video('Başka Dizi S02E08'),
+            fixture0004: video(title + ' | S02E08', {
+                formats: [{ url: mp4, mimeType: 'video/mp4; codecs="avc1.42001e, mp4a.40.2"', height: 360, qualityLabel: '360p' }]
+            })
+        }
+    }, seriesMetadata);
+    const streams = await getStreams('123', 'tv', 2, 8);
+    assert.deepEqual(streams.map(stream => [stream.url, stream.quality]), [[mp4, '360p']]);
+});
+
+test('YouTube tries the verified cumulative search before the other sequential searches', async (t) => {
+    const cumulativeQuery = title + ' 24. Bölüm';
+    const queries = fetchFixtures(t, new Map(siteDown), {
+        search: query => query === cumulativeQuery ? ['fixture0001'] : [],
+        videos: { fixture0001: video(title + ' 24. Bölüm') }
+    }, seriesMetadata);
+    assert.deepEqual((await getStreams('123', 'tv', 2, 8)).map(stream => stream.url), [hls]);
+    assert.deepEqual(queries, [cumulativeQuery]);
+});
+
+test('WordPress checks the series index if the season page is empty or throws', async (t) => {
+    const seasonPage = 'https://fixture.invalid/ornek-2-sezon-izle/';
+    for (const [name, response] of [
+        ['empty', '<p>No episodes</p>'],
+        ['exception', new Error('fixture season page error')]
+    ]) {
+        await t.test(name, async (child) => {
+            fetchFixtures(child, new Map([
+                [base + '/', 'reachable'],
+                [base + '/?s=' + encodeURIComponent(title), '<article>' + link(seriesPage, title) + '</article>'],
+                [seriesPage, link(seasonPage, 'Season 2') +
+                    link('https://fixture.invalid/wrong-episode/', 'Bölüm 8') +
+                    link(episodePage, 'Bölüm 8 | Season 2')],
+                [seasonPage, response],
+                [episodePage, embed(iframe)],
+                [iframe, '"' + mp4 + '"']
+            ]), { search: () => [] }, seriesMetadata);
+            const streams = await getStreams('123', 'tv', 2, 8);
+            assert.deepEqual(streams.map(stream => [stream.url, stream.quality]), [[mp4, undefined]]);
+        });
+    }
+});
+
+test('an empty fallback logs stage counts and elapsed time without response data', async (t) => {
+    const log = t.mock.method(console, 'log', () => {});
+    fetchFixtures(t, new Map(siteDown), {
+        search: () => ['fixture0001', 'fixture0002', 'fixture0003', 'fixture0004'],
+        videos: {
+            fixture0001: new Error('private exception text ' + mp4),
+            fixture0002: { videoDetails: { title, lengthSeconds: '899' } },
+            fixture0003: video(title + ' 4. Bölüm'),
+            fixture0004: video(title + ' 3. Bölüm', {
+                formats: [{ url: mp4, mimeType: 'video/mp4; codecs="avc1.42001e"', audioChannels: 0 }]
+            })
+        }
+    });
+    assert.deepEqual(await getStreams(title, 'tv', 1, 3), []);
+    assert.equal(log.mock.callCount(), 1);
+    assert.equal(log.mock.calls[0].arguments.length, 1);
+    assert.match(log.mock.calls[0].arguments[0],
+        /^\[trdiziizle\] empty stage=youtube elapsedMs=\d+ cumulative=false wordpress=unavailable seasonPageErrors=0 searchErrors=0 playerErrors=1 shortCandidates=1 episodeMismatches=1 noPlayableFormats=1$/);
+});
 
 test('YouTube finds cumulative episode 24 and preserves strict season, episode and title checks', async (t) => {
     const queries = fetchFixtures(t, new Map(siteDown), {
