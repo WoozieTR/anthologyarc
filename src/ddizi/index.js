@@ -697,6 +697,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         }
 
         if (typeof tmdbIdOrArgs === 'string' && tmdbIdOrArgs.startsWith('ddizi:show:')) {
+            await cfgReady();
             const showMeta = await getMeta(tmdbIdOrArgs);
             if (showMeta && showMeta.meta && Array.isArray(showMeta.meta.videos) && showMeta.meta.videos.length > 0) {
                 return await getStreams(showMeta.meta.videos[0].id);
@@ -704,6 +705,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         }
 
         if (typeof tmdbIdOrArgs === 'string' && tmdbIdOrArgs.startsWith('ddizi:ep:')) {
+            await cfgReady();
             const slug = tmdbIdOrArgs.replace('ddizi:ep:', '');
             const epUrl = `${BASE_URL}/izle/${slug}`;
             return await extractStreamsFromEpisodePage(epUrl);
@@ -728,7 +730,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             }
         }
 
-        const info = await resolveTmdbInfo(id, mediaType || 'tv');
+        const [info] = await Promise.all([resolveTmdbInfo(id, mediaType || 'tv'), cfgReady()]);
         const searchTitles = seriesSearchTitles(info);
         if (nrm.kind === 'title' && searchTitles.length === 0) searchTitles.push(String(id || '').trim());
         if (searchTitles.length === 0) return [];
@@ -896,7 +898,8 @@ if (typeof getStreams === "function") {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = wrapAll({ getStreams, getMeta, getCatalog }, cfgReady);
+    module.exports = wrapAll({ getMeta, getCatalog }, cfgReady);
+    module.exports.getStreams = getStreams;
 }
 if (typeof globalThis !== 'undefined') {
     globalThis.getStreams = getStreams;

@@ -1145,6 +1145,7 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         return getStreams(tmdbIdOrArgs.id, mediaType || tmdbIdOrArgs.type, seasonNum || tmdbIdOrArgs.season, episodeNum || tmdbIdOrArgs.episode);
       }
       if (typeof tmdbIdOrArgs === "string" && tmdbIdOrArgs.startsWith("tvdiziler:ep:")) {
+        yield cfgReady();
         var epSlug = tmdbIdOrArgs.replace("tvdiziler:ep:", "");
         var epUrl = BASE_URL + "/" + epSlug.replace(/^\/+/, "");
         return yield extractStreamsFromEpisodePage(epUrl);
@@ -1165,7 +1166,7 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
           episode = parseInt(parts[2]) || episode;
         }
       }
-      var info = yield resolveTmdbInfo(id, mediaType);
+      var [info] = yield Promise.all([resolveTmdbInfo(id, mediaType), cfgReady()]);
       var searchTitles = seriesSearchTitles(info);
       if (nrm.kind === "title" && searchTitles.length === 0) searchTitles.push(String(id || "").trim());
       if (searchTitles.length === 0) return [];
@@ -1306,7 +1307,8 @@ if (typeof getStreams === "function") {
 }
 var _origGetStreams;
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = wrapAll({ getStreams, getMeta, getCatalog }, cfgReady);
+  module.exports = wrapAll({ getMeta, getCatalog }, cfgReady);
+  module.exports.getStreams = getStreams;
 }
 if (typeof globalThis !== "undefined") {
   globalThis.getStreams = getStreams;

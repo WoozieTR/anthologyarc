@@ -44,6 +44,9 @@ jobs:
       - name: Test config cache and playability checks
         run: node --test scripts/test_config_cache.test.js scripts/test_playability.test.js
 
+      - name: Test DDizi and TvDiziler configuration and TMDB concurrency offline
+        run: node --test scripts/test_parallel_config_tmdb.test.js
+
       - name: Test content matching offline
         run: node --test scripts/test_content_matching.test.js scripts/test_trdiziizle.test.js
 

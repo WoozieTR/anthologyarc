@@ -692,6 +692,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         }
 
         if (typeof tmdbIdOrArgs === 'string' && tmdbIdOrArgs.startsWith('tvdiziler:ep:')) {
+            await cfgReady();
             var epSlug = tmdbIdOrArgs.replace('tvdiziler:ep:', '');
             var epUrl = BASE_URL + '/' + epSlug.replace(/^\/+/, '');
             return await extractStreamsFromEpisodePage(epUrl);
@@ -716,7 +717,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             }
         }
 
-        var info = await resolveTmdbInfo(id, mediaType);
+        var [info] = await Promise.all([resolveTmdbInfo(id, mediaType), cfgReady()]);
         var searchTitles = seriesSearchTitles(info);
         if (nrm.kind === 'title' && searchTitles.length === 0) searchTitles.push(String(id || '').trim());
         if (searchTitles.length === 0) return [];
@@ -880,7 +881,8 @@ if (typeof getStreams === 'function') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = wrapAll({ getStreams: getStreams, getMeta: getMeta, getCatalog: getCatalog }, cfgReady);
+    module.exports = wrapAll({ getMeta: getMeta, getCatalog: getCatalog }, cfgReady);
+    module.exports.getStreams = getStreams;
 }
 if (typeof globalThis !== 'undefined') {
     globalThis.getStreams = getStreams;
