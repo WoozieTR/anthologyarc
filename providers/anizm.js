@@ -304,6 +304,7 @@ var require_unpacker = __commonJS({
 var require_turkish_series = __commonJS({
   "src/shared/turkish_series.js"(exports2, module2) {
     var TMDB_API_BASE = "https://api.themoviedb.org/3";
+    var TMDB_FETCH_TIMEOUT_MS = 8 * 1e3;
     function normalizeSeriesId2(raw) {
       var out = { id: "", kind: "unknown", season: 0, episode: 0 };
       if (typeof raw !== "string") return out;
@@ -372,17 +373,43 @@ var require_turkish_series = __commonJS({
     }
     function tmdbJson(url) {
       return __async(this, null, function* () {
+        var controller;
+        var timer;
+        var timeoutError = new Error("TMDB metadata timeout");
         try {
-          var res = yield fetch(url, {
+          controller = typeof AbortController === "function" ? new AbortController() : null;
+          var options = {
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
               "Accept": "application/json"
             }
+          };
+          if (controller) options.signal = controller.signal;
+          var deadline = Date.now() + TMDB_FETCH_TIMEOUT_MS;
+          var timeout = new Promise(function(_, reject) {
+            timer = setTimeout(function() {
+              reject(timeoutError);
+            }, TMDB_FETCH_TIMEOUT_MS);
           });
-          if (!res.ok) return null;
-          return yield res.json();
+          var request = Promise.resolve().then(function() {
+            return fetch(url, options);
+          }).then(function(res) {
+            if (Date.now() >= deadline) throw timeoutError;
+            return res && res.ok ? res.json() : null;
+          });
+          var data = yield Promise.race([request, timeout]);
+          if (Date.now() >= deadline) throw timeoutError;
+          return data;
         } catch (e) {
+          if (e === timeoutError && controller) {
+            try {
+              controller.abort();
+            } catch (abortError) {
+            }
+          }
           return null;
+        } finally {
+          if (timer !== void 0) clearTimeout(timer);
         }
       });
     }

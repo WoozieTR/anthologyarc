@@ -22,28 +22,68 @@ function translations(...names) {
     return { translations: names.map(name => ({ data: { name } })) };
 }
 
-async function resolve(routes, rawId, type) {
+async function resolve(routes, rawId, type, { withAbortController = true } = {}) {
     let now = 0;
     const requests = [];
-    const pending = [];
+    const jsonCalls = [];
+    const pending = new Set();
+    const deadlines = new Set();
     const unexpected = [];
     const module = { exports: {} };
+
+    function schedule(done, delay) {
+        const event = { at: now + delay, done };
+        pending.add(event);
+        return event;
+    }
+
+    function wait(delay) {
+        return new Promise(done => {
+            if (delay !== Infinity) schedule(done, delay);
+        });
+    }
+
+    async function advance() {
+        const next = [...pending].sort((a, b) => a.at - b.at)[0];
+        now = next.at;
+        for (const event of pending) {
+            if (event.at !== now) continue;
+            pending.delete(event);
+            event.done();
+        }
+        await new Promise(setImmediate);
+    }
+
     runInNewContext(source, {
         module,
-        async fetch(url, { headers }) {
+        Date: { now: () => now },
+        AbortController: withAbortController ? AbortController : undefined,
+        setTimeout(done, delay) {
+            const event = schedule(done, delay);
+            deadlines.add(event);
+            return event;
+        },
+        clearTimeout(event) {
+            pending.delete(event);
+            deadlines.delete(event);
+        },
+        async fetch(url, { headers, signal }) {
             const route = routes.find(([expected]) => expected === url);
-            requests.push([url, now, headers.Accept, headers['User-Agent']]);
+            requests.push([url, now, headers.Accept, headers['User-Agent'], signal]);
             if (!route) {
                 unexpected.push(url);
                 throw new Error('Unexpected request: ' + url);
             }
-            const [, delay, data] = route;
-            await new Promise(done => pending.push({ at: now + delay, done }));
+            const [, delay, data, jsonDelay = 0] = route;
+            // The transport deliberately ignores cancellation.
+            await wait(delay);
             if (data instanceof Error) throw data;
             if (data === null) return { ok: false, status: 429 };
             return {
                 ok: true,
-                json() {
+                async json() {
+                    jsonCalls.push(url);
+                    if (jsonDelay) await wait(jsonDelay);
                     if (data === undefined) throw new SyntaxError('Invalid JSON');
                     return data;
                 }
@@ -54,21 +94,28 @@ async function resolve(routes, rawId, type) {
     let settled = false;
     const result = module.exports.resolveSeriesInfo(rawId, type, 'fixture');
     result.then(() => { settled = true; }, () => { settled = true; });
+    await new Promise(setImmediate);
     while (!settled) {
-        await new Promise(setImmediate);
-        if (settled) break;
-        assert.ok(pending.length, 'Resolver stalled');
-        pending.sort((a, b) => a.at - b.at);
-        now = pending[0].at;
-        while (pending[0]?.at === now) pending.shift().done();
+        assert.ok(pending.size, 'Resolver stalled');
+        await advance();
     }
+    const elapsed = now;
+    assert.equal(deadlines.size, 0, 'Resolver must clear every deadline timer');
+    const identity = await result;
+    while (pending.size) await advance();
     assert.deepEqual(unexpected, []);
     assert.deepEqual(requests.map(([url]) => url), routes.map(([url]) => url));
     for (const [, , accept, userAgent] of requests) {
         assert.equal(accept, 'application/json');
         assert.match(userAgent, /Chrome\/122\.0\.0\.0/);
     }
-    return { output: JSON.parse(JSON.stringify(await result)), starts: requests.map(([, at]) => at), elapsed: now };
+    return {
+        output: JSON.parse(JSON.stringify(identity)),
+        starts: requests.map(([, at]) => at),
+        signals: requests.map(([, , , , signal]) => signal),
+        jsonCalls,
+        elapsed
+    };
 }
 
 test('numeric TV ID overlaps three requests and preserves seasons and folded alias order', async () => {
@@ -128,9 +175,59 @@ test('movie alternatives survive invalid JSON from external IDs', async () => {
     assert.equal(result.elapsed, 100);
 });
 
+const unresolvedImdb = {
+    title: '', origTitle: '', numericId: '', imdbId: '', aliases: [], seasons: [], kind: 'imdb', type: 'tv'
+};
+
 test('IMDb lookup without a hit stops before requesting metadata', async () => {
     const result = await resolve([[find, 30, {}]], 'tt123', 'tv');
-    assert.deepEqual(result.output, {
-        title: '', origTitle: '', numericId: '', imdbId: '', aliases: [], seasons: [], kind: 'imdb', type: 'tv'
-    });
+    assert.deepEqual(result.output, unresolvedImdb);
+});
+
+test('stalled fetch stops at eight seconds when the transport ignores cancellation', async () => {
+    const result = await resolve([[find, Infinity, {}]], 'tt123', 'tv');
+    assert.deepEqual(result.output, unresolvedImdb);
+    assert.equal(result.elapsed, 8000);
+    assert.equal(result.signals[0].aborted, true);
+});
+
+test('stalled JSON shares the fetch deadline', async () => {
+    const result = await resolve([[find, 5000, {}, Infinity]], 'tt123', 'tv');
+    assert.deepEqual(result.output, unresolvedImdb);
+    assert.deepEqual(result.jsonCalls, [find]);
+    assert.equal(result.elapsed, 8000);
+    assert.equal(result.signals[0].aborted, true);
+});
+
+test('late fetch and late JSON results cannot extend or change a lookup', async () => {
+    const hit = { tv_results: [{ id: 123, name: tvDetails.name }] };
+    for (const [fetchDelay, jsonDelay, jsonCalls] of [[8100, 0, []], [5000, 3100, [find]]]) {
+        const result = await resolve([[find, fetchDelay, hit, jsonDelay]], 'tt123', 'tv');
+        assert.equal(result.elapsed, 8000);
+        assert.deepEqual(result.output, unresolvedImdb);
+        assert.deepEqual(result.jsonCalls, jsonCalls);
+    }
+});
+
+test('one timed-out metadata request preserves successful parallel results', async () => {
+    const result = await resolve([
+        [tv + key + localized, 100, tvDetails],
+        [tv + '/external_ids' + key, 5000, { imdb_id: 'tt456' }, Infinity],
+        [tv + '/translations' + key, 40, translations('Diğer Ad')]
+    ], '123', 'tv');
+    assert.deepEqual(result.output, { ...tvIdentity, imdbId: '', aliases: ['Diğer Ad'] });
+    assert.deepEqual(result.starts, [0, 0, 0]);
+    assert.deepEqual(result.signals.map(signal => signal.aborted), [false, true, false]);
+    assert.equal(result.elapsed, 8000);
+});
+
+test('lookup still enforces the deadline without AbortController', async () => {
+    const result = await resolve([
+        [tv + key + localized, 100, tvDetails],
+        [tv + '/external_ids' + key, 70, { imdb_id: 'tt456' }],
+        [tv + '/translations' + key, Infinity, translations('Diğer Ad')]
+    ], '123', 'tv', { withAbortController: false });
+    assert.deepEqual(result.output, { ...tvIdentity, aliases: ['tt456'] });
+    assert.deepEqual(result.signals, [undefined, undefined, undefined]);
+    assert.equal(result.elapsed, 8000);
 });
