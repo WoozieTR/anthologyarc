@@ -17,6 +17,7 @@
  */
 
 var TMDB_API_BASE = 'https://api.themoviedb.org/3';
+var TMDB_FETCH_TIMEOUT_MS = 8 * 1000;
 
 /**
  * Normalize a raw id coming from Nuvio/Stremio into { id, kind, season, episode }.
@@ -89,16 +90,42 @@ function tokensMatch(a, b) {
 }
 
 async function tmdbJson(url) {
+  var controller;
+  var timer;
+  var timeoutError = new Error('TMDB metadata timeout');
   try {
-    var res = await fetch(url, {
+    controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var options = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'application/json'
       }
+    };
+    if (controller) options.signal = controller.signal;
+
+    var deadline = Date.now() + TMDB_FETCH_TIMEOUT_MS;
+    var timeout = new Promise(function (_, reject) {
+      timer = setTimeout(function () { reject(timeoutError); }, TMDB_FETCH_TIMEOUT_MS);
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (e) { return null; }
+    var request = Promise.resolve().then(function () {
+      return fetch(url, options);
+    }).then(function (res) {
+      if (Date.now() >= deadline) throw timeoutError;
+      return res && res.ok ? res.json() : null;
+    });
+
+    var data = await Promise.race([request, timeout]);
+    // Synchronous parsing can delay the timer callback.
+    if (Date.now() >= deadline) throw timeoutError;
+    return data;
+  } catch (e) {
+    if (e === timeoutError && controller) {
+      try { controller.abort(); } catch (abortError) {}
+    }
+    return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
 }
 
 function pickResults(data, preferTv) {
