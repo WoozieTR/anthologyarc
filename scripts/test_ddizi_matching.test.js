@@ -11,7 +11,7 @@ const base = 'https://ddizi.fixture.invalid';
 const show = '/diziler/123/yeralti';
 const videoId = 'fixture0001';
 const otherVideoId = 'fixture0002';
-const video = 'https://media.fixture.invalid/360.mp4?token=fixture';
+const video = 'https://media.fixture.invalid/360p.mp4?token=fixture';
 const anchor = (href, title) => `<a href="${href}">${title}</a>`;
 
 function fixture(routes, player, seasons = [{ season_number: 1, episode_count: 16 }], streamingData = { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }) {
@@ -251,6 +251,11 @@ test('DDizi labels direct streams only when the path provides a resolution', asy
         ['/episode.mp4', ''],
         ['/episode.mp4?token=720-480-360&itag=22', ''],
         ['/episode1720480.mp4', ''],
+        ['/720/episode.mp4', ''],
+        ['/episode-1080.mp4', ''],
+        ['/720p/episode-1080.mp4', '720p'],
+        ['/720p/episode-1280x720.mp4', '720p'],
+        ['/720p-1080p/episode.mp4', ''],
         ['/1280x720/episode.mp4?token=480', '720p']
     ]) {
         const url = 'https://media.fixture.invalid' + path;

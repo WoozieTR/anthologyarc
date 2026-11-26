@@ -10,7 +10,7 @@ const requireFromProvider = createRequire(filename);
 const base = 'https://tvdiziler.fixture.invalid';
 const show = '/dizi/yeralti-son-bolum-izle';
 const player = '/vid/ply/fixture';
-const video = 'https://media.fixture.invalid/360.mp4?token=fixture';
+const video = 'https://media.fixture.invalid/360p.mp4?token=fixture';
 const videoId = 'fixture0001';
 const otherVideoId = 'fixture0002';
 const card = (href, title) => `<a href="${href.slice(1)}"><h2>${title}</h2></a>`;
@@ -312,6 +312,11 @@ test('TvDiziler labels direct streams only when the path provides a resolution',
         ['/episode.mp4', ''],
         ['/episode.mp4?token=720-480-360&itag=22', ''],
         ['/episode1720480.mp4', ''],
+        ['/720/episode.mp4', ''],
+        ['/episode-1080.mp4', ''],
+        ['/720p/episode-1080.mp4', '720p'],
+        ['/720p/episode-1280x720.mp4', '720p'],
+        ['/720p-1080p/episode.mp4', ''],
         ['/1280x720/episode.mp4?token=480', '720p']
     ]) {
         const url = 'https://media.fixture.invalid' + path;
