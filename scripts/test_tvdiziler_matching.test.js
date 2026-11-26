@@ -19,8 +19,10 @@ const row = (href, number, title) => `<a data-navigo class="truncate" href="${hr
 function fixture({ cards, listing, href, candidates, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
     const module = { exports: {} };
     const requests = [];
+    const diagnostics = [];
     runInNewContext(readFileSync(filename, 'utf8'), {
         module, AbortSignal, URL, URLSearchParams,
+        console: { log: message => diagnostics.push(message) },
         require(id) {
             if (id === '../shared/config.js') {
                 return { loadConfig: async () => {}, val: () => base, wrapAll: exports => exports };
@@ -61,7 +63,12 @@ function fixture({ cards, listing, href, candidates, seasons = [{ season_number:
             return { ok: false };
         }
     }, { filename });
-    return { getStreams: (season = 2, episode = 7) => module.exports.getStreams('901', 'tv', season, episode), requests };
+    return {
+        getStreams: (season = 2, episode = 7) => module.exports.getStreams('901', 'tv', season, episode),
+        getDirectStreams: slug => module.exports.getStreams('tvdiziler:ep:' + slug),
+        requests,
+        diagnostics
+    };
 }
 
 test('TvDiziler skips similar and unrelated series search results', async () => {
@@ -153,4 +160,51 @@ test('TvDiziler skips wrong YouTube results and keeps existing quality and nativ
         assert.ok(streams.some(stream => stream.url === video && stream.quality === '360p'), title);
         assert.deepEqual(Array.from(streams.filter(stream => stream.ytId), stream => stream.ytId), [videoId]);
     }
+});
+
+test('TvDiziler reports fixed series and episode decisions and the successful origin', async () => {
+    const href = '/yeralti-2-sezon-7-bolum';
+    const f = fixture({
+        cards: card('/dizi/private-series', 'Private title') + card(show, 'Yeraltı'),
+        listing: row('/private-link?token=fixture', 7, 'Private response') +
+            row('/other-23-bolum', 23, '23. Bölüm') +
+            row('/yeralti-24-bolum', 24, '24. Bölüm') +
+            row(href, 7, '2. Sezon 7. Bölüm') +
+            row('/uninspected-23-bolum', 23, '23. Bölüm'),
+        href
+    });
+
+    assert.equal((await f.getStreams())[0]?.url, video);
+    assert.deepEqual(f.diagnostics, [
+        '[TvDiziler] series_match {"accepted":1,"rejected":1,"title_mismatch":1,"missing_slug":0}',
+        '[TvDiziler] episode_match {"origin":"episode_list","accepted":1,"rejected":3,"invalid_link":1,"series_mismatch":1,"number_mismatch":1}',
+        '[TvDiziler] result {"origin":"episode_list","count":1}'
+    ]);
+});
+
+test('TvDiziler reports fallback decisions and empty results without response data', async () => {
+    const empty = fixture();
+    assert.equal((await empty.getStreams()).length, 0);
+    assert.equal(empty.diagnostics.at(-1), '[TvDiziler] empty_result {"reason":"no_streams"}');
+
+    const fallback = fixture({
+        candidates: { [otherVideoId]: 'Private response', [videoId]: 'Yeraltı 2. Sezon 7. Bölüm' }
+    });
+    assert.equal((await fallback.getStreams()).length, 2);
+    assert.deepEqual(fallback.diagnostics.slice(-2), [
+        '[TvDiziler] episode_match {"origin":"youtube_fallback","accepted":1,"rejected":1,"duration":0,"title_mismatch":1}',
+        '[TvDiziler] result {"origin":"youtube_fallback","count":2}'
+    ]);
+});
+
+test('TvDiziler reports direct episode results without identifying the episode', async () => {
+    const href = '/private-episode';
+    const f = fixture({ href });
+
+    assert.equal((await f.getDirectStreams(href))[0]?.url, video);
+    assert.equal((await f.getDirectStreams('/missing-private-episode')).length, 0);
+    assert.deepEqual(f.diagnostics, [
+        '[TvDiziler] result {"origin":"direct_episode","count":1}',
+        '[TvDiziler] empty_result {"reason":"direct_episode_empty"}'
+    ]);
 });
