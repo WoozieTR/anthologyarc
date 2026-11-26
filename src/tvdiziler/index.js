@@ -1,7 +1,7 @@
 const { sortStreamsByQuality } = require('../shared/quality.js');
 const { getResolutionFromPath } = require('../shared/resolution.js');
 const { loadConfig, val, wrapAll } = require('../shared/config.js');
-const { timeoutSignal } = require('../shared/http.js');
+const { safeFetch } = require('../shared/http_request.js');
 const { asciiFold, normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require('../shared/turkish_series.js');
 
 var _cfgReady = null;
@@ -39,51 +39,6 @@ function diagnostic(stage, fields) {
             console.log('[TvDiziler] ' + stage + ' ' + JSON.stringify(fields));
         }
     } catch (e) {}
-}
-
-function safeFetch(url, options, ms) {
-    options = options || {};
-    ms = ms || 10000;
-    if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-        try {
-            var https = require('https');
-            var http = require('http');
-            var u = new URL(url);
-            var mod = u.protocol === 'http:' ? http : https;
-            return new Promise(function (resolve, reject) {
-                var req = mod.request({
-                    hostname: u.hostname,
-                    port: u.port || (u.protocol === 'http:' ? 80 : 443),
-                    path: u.pathname + u.search,
-                    method: options.method || 'GET',
-                    headers: options.headers || {}
-                }, function (res) {
-                    var data = '';
-                    res.on('data', function (chunk) { data += chunk; });
-                    res.on('end', function () {
-                        resolve({
-                            ok: res.statusCode >= 200 && res.statusCode < 300,
-                            status: res.statusCode,
-                            headers: res.headers,
-                            text: async function () { return data; },
-                            json: async function () { return JSON.parse(data); }
-                        });
-                    });
-                });
-                req.setTimeout(ms, function () {
-                    req.destroy(new Error('Request timeout'));
-                });
-                req.on('error', reject);
-                if (options.body) req.write(options.body);
-                req.end();
-            });
-        } catch (e) {}
-    }
-
-    if (!options.signal) {
-        options.signal = timeoutSignal(ms);
-    }
-    return fetch(url, options);
 }
 
 async function resolveYouTubeMp4(ytId) {
@@ -285,9 +240,8 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                 var res = await safeFetch('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), {
                     headers: {
                         'User-Agent': HEADERS['User-Agent']
-                    },
-                    signal: timeoutSignal(3500)
-                });
+                    }
+                }, 3500);
                 if (!res.ok) continue;
                 var html = await res.text();
                 var vidMatches = [...html.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)].map(function (m) { return m[1]; });
@@ -304,9 +258,8 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                             body: JSON.stringify({
                                 context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } },
                                 videoId: ytId
-                            }),
-                            signal: timeoutSignal(3000)
-                        });
+                            })
+                        }, 3000);
                         if (!pRes.ok) continue;
                         var data = await pRes.json();
                         var duration = parseInt((data.videoDetails && data.videoDetails.lengthSeconds) || '0');
