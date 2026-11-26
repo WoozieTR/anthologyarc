@@ -1,7 +1,7 @@
 const { sortStreamsByQuality } = require('../shared/quality.js');
 const { loadConfig, val, wrapAll } = require('../shared/config.js');
 const { timeoutSignal } = require('../shared/http.js');
-const { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require('../shared/turkish_series.js');
+const { asciiFold, normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require('../shared/turkish_series.js');
 
 var _cfgReady = null;
 function cfgReady() {
@@ -132,14 +132,95 @@ async function resolveYouTubeMp4(ytId) {
     return null;
 }
 
-function ultraClean(str) {
-    if (!str) return '';
-    return str.toString().toLowerCase()
-        .replace(/[ıİ]/g, 'i').replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o')
-        .replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g').replace(/[çÇ]/g, 'c')
-        .replace(/[âÂ]/g, 'a').replace(/[îÎ]/g, 'i').replace(/[ûÛ]/g, 'u')
-        .replace(/[^a-z0-9]/g, '')
-        .trim();
+function cleanSeriesTitle(title) {
+    return String(title || '').replace(/\s*\(\d{4}\)\s*$/, '').trim();
+}
+
+function seriesKey(title) {
+    return asciiFold(title).replace(/[^a-z0-9]/g, '');
+}
+
+function lastPathSegment(href) {
+    return href.split(/[?#]/)[0].replace(/\/+$/, '').split('/').pop();
+}
+
+function showSlugKey(href) {
+    return seriesKey(lastPathSegment(href).replace(/-(?:(?:\d+-)?son-bolum|izle)(?:-|$).*$/i, ''));
+}
+
+function parseEpisodeLink(href) {
+    const slug = asciiFold(lastPathSegment(href));
+    const match = slug.match(/^(.+?)-sezon-(\d+)-bolumu?-(\d+)(?:-|$)/) ||
+        slug.match(/^(.+?)(?:-(\d+)-sezon)?-(\d+)-bolumu?(?:-|$)/);
+    if (!match) return null;
+    return { series: seriesKey(match[1]), season: match[2] ? Number(match[2]) : null, episode: Number(match[3]) };
+}
+
+const SEASON_LABEL = '(?:([0-9]+)\\s*\\.?\\s*(?:sezon|season)|(?:sezon|season)\\s*[:#-]?\\s*([0-9]+))\\b';
+const EPISODE_LABEL = '(?:([0-9]+)\\s*\\.?\\s*(?:bolumu?|episode|ep|b)|(?:bolumu?|episode|ep)\\s*[:#-]?\\s*([0-9]+)|b([0-9]+))\\b';
+
+function episodeLabels(text) {
+    // Consume each marker once so adjacent numbers belong to their own labels.
+    const labels = new RegExp('\\b(?:' + SEASON_LABEL + '|' + EPISODE_LABEL + ')', 'g');
+    const seasons = [];
+    const episodes = [];
+    for (const match of text.matchAll(labels)) {
+        if (match[1] || match[2]) seasons.push(Number(match[1] || match[2]));
+        else episodes.push(Number(match[3] || match[4] || match[5]));
+    }
+    return { seasons, episodes };
+}
+
+function matchesEpisodeNumbers(labels, season, episode, cumEpisode) {
+    if (labels.seasons.some(number => number !== season)) return false;
+    return labels.episodes.every(number =>
+        number === cumEpisode || (labels.seasons.length > 0 && number === episode));
+}
+
+function matchesYouTubeEpisode(videoTitle, title, season, episode, cumEpisode) {
+    const text = asciiFold(videoTitle);
+    const series = asciiFold(cleanSeriesTitle(title)).match(/[a-z0-9]+/g);
+    if (!series) return false;
+
+    const separator = '[^a-z0-9]*';
+    const seriesLabel = series.join('[^a-z0-9]+');
+    const episodeLabel = '(?:' + SEASON_LABEL + separator + ')?' + EPISODE_LABEL;
+    const titleFirst = new RegExp('(?:^|[|–—])' + separator + seriesLabel + separator + episodeLabel);
+    const episodeFirst = new RegExp('^' + separator + episodeLabel + separator + seriesLabel +
+        '(?:' + separator + '$|\\s*[|–—-])');
+    if (!titleFirst.test(text) && !episodeFirst.test(text)) return false;
+
+    const labels = episodeLabels(text);
+    return labels.episodes.length > 0 && matchesEpisodeNumbers(labels, season, episode, cumEpisode);
+}
+
+function cumulativeEpisode(seasons, season, episode) {
+    const entries = Array.isArray(seasons) ? seasons : [];
+    let total = episode;
+    for (let s = 1; s < season; s++) {
+        const previous = entries.find(entry => entry && entry.season_number === s);
+        if (!previous || !Number.isInteger(previous.episode_count) || previous.episode_count <= 0) return null;
+        total += previous.episode_count;
+    }
+    return total;
+}
+
+function matchEpisode(episodes, keys, season, episode, cumEpisode) {
+    let cumulativeMatch = null;
+    for (const entry of episodes) {
+        const identity = parseEpisodeLink(entry.href);
+        if (!identity || !keys.includes(identity.series)) continue;
+
+        const labels = episodeLabels(asciiFold(entry.title));
+        if (identity.season !== null) labels.seasons.push(identity.season);
+        labels.episodes.push(identity.episode);
+        if (entry.epNum) labels.episodes.push(entry.epNum);
+        if (!matchesEpisodeNumbers(labels, season, episode, cumEpisode)) continue;
+
+        if (labels.seasons.length > 0) return entry;
+        if (!cumulativeMatch) cumulativeMatch = entry;
+    }
+    return cumulativeMatch;
 }
 
 function getValidTmdbKey() {
@@ -194,7 +275,7 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                         var vTitle = (data.videoDetails && data.videoDetails.title) || '';
 
                         // Duration must be at least 15 minutes (900 seconds) for a full episode
-                        if (duration >= 900) {
+                        if (duration >= 900 && matchesYouTubeEpisode(vTitle, title, season, episode, cumEpisode)) {
                             var streams = [];
                             if (data.streamingData && data.streamingData.hlsManifestUrl) {
                                 streams.push({
@@ -722,55 +803,18 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         if (nrm.kind === 'title' && searchTitles.length === 0) searchTitles.push(String(id || '').trim());
         if (searchTitles.length === 0) return [];
 
-        // Compute cumulative episode count for series with multiple seasons
-        var cumEpisode = episode;
-        if (season > 1 && Array.isArray(info.seasons) && info.seasons.length > 0) {
-            var sum = 0;
-            for (var s = 1; s < season; s++) {
-                var sObj = info.seasons.find(function (x) { return x.season_number === s; });
-                if (sObj && sObj.episode_count) {
-                    sum += sObj.episode_count;
-                }
-            }
-            if (sum > 0) {
-                cumEpisode = sum + episode;
-            }
-        }
+        var cumEpisode = cumulativeEpisode(info.seasons, season, episode);
 
         for (var title of searchTitles) {
-            var cleanQuery = title.replace(/\s*\(\d{4}\).*$/, '').trim();
+            var cleanQuery = cleanSeriesTitle(title);
+            var cleanTarget = seriesKey(cleanQuery);
+            if (!cleanTarget) continue;
+
             var results = await searchTvDiziler(cleanQuery);
-            if (results.length === 0) continue;
-
-            var cleanTarget = ultraClean(cleanQuery);
-            var matchedShow = null;
-
-            // 1. Exact clean match
-            for (var r of results) {
-                var rClean = ultraClean(r.title);
-                if (rClean === cleanTarget) {
-                    matchedShow = r;
-                    break;
-                }
-            }
-
-            // 2. Contains match
-            if (!matchedShow) {
-                for (var r of results) {
-                    var rClean = ultraClean(r.title);
-                    if (rClean.includes(cleanTarget) || cleanTarget.includes(rClean)) {
-                        matchedShow = r;
-                        break;
-                    }
-                }
-            }
-
-            // 3. Fallback to first result
-            if (!matchedShow && results.length > 0) {
-                matchedShow = results[0];
-            }
-
+            var matchedShow = results.find(result => seriesKey(cleanSeriesTitle(result.title)) === cleanTarget);
             if (!matchedShow || !matchedShow.slug) continue;
+
+            var seriesKeys = [cleanTarget, showSlugKey(matchedShow.slug)];
 
             var showUrl = BASE_URL + '/' + matchedShow.slug.replace(/^\/+/, '');
             var sRes = await safeFetch(showUrl, { headers: HEADERS });
@@ -783,71 +827,23 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             while ((em = epRegex.exec(sHtml)) !== null) {
                 episodes.push({
                     href: em[1],
-                    epNum: parseInt(em[2]) || 0,
+                    epNum: Number(em[2]) || 0,
                     title: em[3].trim()
                 });
             }
 
             if (episodes.length === 0) {
-                var fbRegex = /<a[^>]+href=["'](?:https:\/\/tvdiziler\.tv\/)?([a-zA-Z0-9_-]*bolum[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+                var fbRegex = /<a[^>]+href=["'](?:https:\/\/tvdiziler\.tv\/)?(\/?[a-zA-Z0-9_-]*bolum[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
                 var fbm;
-                var seen = new Set();
                 while ((fbm = fbRegex.exec(sHtml)) !== null) {
-                    var href = fbm[1];
-                    if (seen.has(href)) continue;
-                    seen.add(href);
-                    var epText = fbm[2].replace(/<[^>]+>/g, '').trim();
-                    var numMatch = epText.match(/(\d+)\s*\.?\s*bölüm/i) || href.match(/-(\d+)-bolum/i);
                     episodes.push({
-                        href: href,
-                        epNum: numMatch ? parseInt(numMatch[1]) : 0,
-                        title: epText
+                        href: fbm[1],
+                        title: fbm[2].replace(/<[^>]+>/g, ' ').trim()
                     });
                 }
             }
 
-            if (episodes.length === 0) continue;
-
-            var targetEp = null;
-
-            // Strategy 1: Explicit Season + Episode in title (e.g. "4.Sezon 15.Bölüm")
-            var seasonEpRegex = new RegExp('(?:^|\\D)' + season + '\\s*\\.?\\s*sezon\\s*' + episode + '\\s*\\.?\\s*bölüm', 'i');
-            for (var ep of episodes) {
-                if (seasonEpRegex.test(ep.title) || seasonEpRegex.test(ep.href)) {
-                    targetEp = ep;
-                    break;
-                }
-            }
-
-            // Strategy 2: Cumulative episode number match (e.g. S2E1 -> Ep 30)
-            if (!targetEp && cumEpisode) {
-                for (var ep of episodes) {
-                    if (ep.epNum === cumEpisode) {
-                        targetEp = ep;
-                        break;
-                    }
-                    var epCumSlug = new RegExp('-' + cumEpisode + '-bolum', 'i');
-                    if (epCumSlug.test(ep.href)) {
-                        targetEp = ep;
-                        break;
-                    }
-                }
-            }
-
-            // Strategy 3: Raw episode number match (e.g. Ep 1)
-            if (!targetEp) {
-                for (var ep of episodes) {
-                    if (ep.epNum === episode) {
-                        targetEp = ep;
-                        break;
-                    }
-                    var epSlug = new RegExp('-' + episode + '-bolum', 'i');
-                    if (epSlug.test(ep.href)) {
-                        targetEp = ep;
-                        break;
-                    }
-                }
-            }
+            var targetEp = matchEpisode(episodes, seriesKeys, season, episode, cumEpisode);
 
             if (targetEp) {
                 var epUrl = BASE_URL + '/' + targetEp.href.replace(/^\/+/, '');
