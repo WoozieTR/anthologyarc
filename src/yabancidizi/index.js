@@ -1,5 +1,6 @@
 const { sortStreamsByQuality } = require("../shared/quality.js");
 const { loadConfig, val, wrapAll } = require("../shared/config.js");
+const { safeFetch } = require("../shared/http_request.js");
 
 var _cfgReady = null;
 function cfgReady() {
@@ -28,46 +29,6 @@ var HEADERS = {
     'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
     'Referer': BASE_URL + '/'
 };
-
-function safeFetch(url, options) {
-    options = options || {};
-    // Node.js environment fallback for Cloudflare HTTP/1.1 compatibility
-    if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-        try {
-            var https = require('https');
-            var http = require('http');
-            var u = new URL(url);
-            var mod = u.protocol === 'http:' ? http : https;
-            return new Promise(function(resolve, reject) {
-                var req = mod.request({
-                    hostname: u.hostname,
-                    port: u.port || (u.protocol === 'http:' ? 80 : 443),
-                    path: u.pathname + u.search,
-                    method: options.method || 'GET',
-                    headers: options.headers || {}
-                }, function(res) {
-                    var data = '';
-                    res.on('data', function(chunk) { data += chunk; });
-                    res.on('end', function() {
-                        resolve({
-                            ok: res.statusCode >= 200 && res.statusCode < 300,
-                            status: res.statusCode,
-                            headers: res.headers,
-                            text: async function() { return data; },
-                            json: async function() { return JSON.parse(data); }
-                        });
-                    });
-                });
-                req.on('error', reject);
-                if (options.body) req.write(options.body);
-                req.end();
-            });
-        } catch (e) {}
-    }
-
-    // QuickJS / Nuvio native fetch
-    return fetch(url, options);
-}
 
 function ultraClean(str) {
     if (!str) return '';

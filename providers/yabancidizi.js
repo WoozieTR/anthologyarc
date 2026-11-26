@@ -219,9 +219,183 @@ var require_config = __commonJS({
   }
 });
 
+// src/shared/http_request.js
+var require_http_request = __commonJS({
+  "src/shared/http_request.js"(exports2, module2) {
+    function withDeadline(deadline, signal, cancel, operation) {
+      var timer;
+      var onAbort;
+      var cancelled = false;
+      var timeoutError = new Error("Request timeout");
+      function cancelRequest(error) {
+        if (cancelled) return;
+        cancelled = true;
+        try {
+          cancel(error);
+        } catch (e) {
+        }
+      }
+      function stop(reject, error) {
+        reject(error);
+        cancelRequest(error);
+      }
+      function abortReason() {
+        if (signal.reason !== void 0) return signal.reason;
+        var error = new Error("The operation was aborted");
+        error.name = "AbortError";
+        return error;
+      }
+      function checkDeadline() {
+        if (Date.now() >= deadline) {
+          cancelRequest(timeoutError);
+          throw timeoutError;
+        }
+      }
+      var limit = new Promise(function(_, reject) {
+        if (signal && signal.aborted) {
+          stop(reject, abortReason());
+          return;
+        }
+        timer = setTimeout(function() {
+          stop(reject, timeoutError);
+        }, Math.max(0, deadline - Date.now()));
+        if (canListen(signal)) {
+          onAbort = function() {
+            stop(reject, abortReason());
+          };
+          signal.addEventListener("abort", onAbort);
+        }
+      });
+      var request = Promise.resolve().then(function() {
+        if (signal && signal.aborted) throw abortReason();
+        checkDeadline();
+        return operation();
+      }).then(function(value) {
+        checkDeadline();
+        return value;
+      });
+      return Promise.race([limit, request]).finally(function() {
+        if (timer !== void 0) clearTimeout(timer);
+        if (onAbort) signal.removeEventListener("abort", onAbort);
+      });
+    }
+    function canListen(signal) {
+      return signal && typeof signal.addEventListener === "function" && typeof signal.removeEventListener === "function";
+    }
+    function nodeRequest(mod, url, options, deadline) {
+      var req;
+      function destroy() {
+        if (req) req.destroy();
+      }
+      return withDeadline(deadline, options.signal, destroy, function() {
+        return new Promise(function(resolve, reject) {
+          var receivedResponse = false;
+          function onPrematureClose() {
+            var error = new Error(receivedResponse ? "aborted" : "socket hang up");
+            error.code = "ECONNRESET";
+            reject(error);
+          }
+          req = mod.request({
+            hostname: url.hostname,
+            port: url.port || (url.protocol === "http:" ? 80 : 443),
+            path: url.pathname + url.search,
+            method: options.method || "GET",
+            headers: options.headers || {}
+          }, function(res) {
+            receivedResponse = true;
+            var data = "";
+            var ended = false;
+            res.on("error", reject);
+            res.on("aborted", onPrematureClose);
+            res.on("close", function() {
+              if (!ended) onPrematureClose();
+            });
+            res.on("data", function(chunk) {
+              data += chunk;
+            });
+            res.on("end", function() {
+              ended = true;
+              if (!res.complete) {
+                onPrematureClose();
+                return;
+              }
+              resolve({
+                ok: res.statusCode >= 200 && res.statusCode < 300,
+                status: res.statusCode,
+                headers: res.headers,
+                text: function() {
+                  return __async(this, null, function* () {
+                    return data;
+                  });
+                },
+                json: function() {
+                  return __async(this, null, function* () {
+                    return JSON.parse(data);
+                  });
+                }
+              });
+            });
+          });
+          req.on("error", reject);
+          req.on("close", function() {
+            if (!receivedResponse) onPrematureClose();
+          });
+          try {
+            if (options.body) req.write(options.body);
+            req.end();
+          } catch (e) {
+            reject(e);
+            destroy();
+          }
+        });
+      });
+    }
+    function nativeRequest(url, options, deadline) {
+      return __async(this, null, function* () {
+        var signal = options.signal;
+        var controller = typeof AbortController === "function" && (!signal || canListen(signal)) ? new AbortController() : null;
+        var fetchOptions = controller ? Object.assign({}, options, { signal: controller.signal }) : options;
+        function cancel(error) {
+          if (controller) controller.abort(error);
+        }
+        var response = yield withDeadline(deadline, signal, cancel, function() {
+          return fetch(url, fetchOptions);
+        });
+        if (!response) return response;
+        var result = { ok: response.ok, status: response.status, headers: response.headers };
+        ["text", "json"].forEach(function(method) {
+          if (typeof response[method] !== "function") return;
+          result[method] = function() {
+            return withDeadline(deadline, signal, cancel, function() {
+              return response[method]();
+            });
+          };
+        });
+        return result;
+      });
+    }
+    function safeFetch2(url, options, ms) {
+      options = options || {};
+      var deadline = Date.now() + (ms || 1e4);
+      if (typeof process !== "undefined" && process.versions && process.versions.node) {
+        try {
+          var https = require("https");
+          var http = require("http");
+          var parsed = new URL(url);
+          return nodeRequest(parsed.protocol === "http:" ? http : https, parsed, options, deadline);
+        } catch (e) {
+        }
+      }
+      return nativeRequest(url, options, deadline);
+    }
+    module2.exports = { safeFetch: safeFetch2 };
+  }
+});
+
 // src/yabancidizi/index.js
 var { sortStreamsByQuality } = require_quality();
 var { loadConfig, val, wrapAll } = require_config();
+var { safeFetch } = require_http_request();
 var _cfgReady = null;
 function cfgReady() {
   if (!_cfgReady) {
@@ -242,53 +416,6 @@ var HEADERS = {
   "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
   "Referer": BASE_URL + "/"
 };
-function safeFetch(url, options) {
-  options = options || {};
-  if (typeof process !== "undefined" && process.versions && process.versions.node) {
-    try {
-      var https = require("https");
-      var http = require("http");
-      var u = new URL(url);
-      var mod = u.protocol === "http:" ? http : https;
-      return new Promise(function(resolve, reject) {
-        var req = mod.request({
-          hostname: u.hostname,
-          port: u.port || (u.protocol === "http:" ? 80 : 443),
-          path: u.pathname + u.search,
-          method: options.method || "GET",
-          headers: options.headers || {}
-        }, function(res) {
-          var data = "";
-          res.on("data", function(chunk) {
-            data += chunk;
-          });
-          res.on("end", function() {
-            resolve({
-              ok: res.statusCode >= 200 && res.statusCode < 300,
-              status: res.statusCode,
-              headers: res.headers,
-              text: function() {
-                return __async(this, null, function* () {
-                  return data;
-                });
-              },
-              json: function() {
-                return __async(this, null, function* () {
-                  return JSON.parse(data);
-                });
-              }
-            });
-          });
-        });
-        req.on("error", reject);
-        if (options.body) req.write(options.body);
-        req.end();
-      });
-    } catch (e) {
-    }
-  }
-  return fetch(url, options);
-}
 function ultraClean(str) {
   if (!str) return "";
   return str.toString().toLowerCase().replace(/[ıİ]/g, "i").replace(/[üÜ]/g, "u").replace(/[öÖ]/g, "o").replace(/[şŞ]/g, "s").replace(/[ğĞ]/g, "g").replace(/[çÇ]/g, "c").replace(/[^a-z0-9]/g, "").trim();

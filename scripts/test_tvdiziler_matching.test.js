@@ -20,10 +20,18 @@ function fixture({ cards, listing, href, candidates, playerUrl = video, streamin
     const module = { exports: {} };
     const requests = [];
     const diagnostics = [];
-    runInNewContext(readFileSync(filename, 'utf8'), {
-        module, AbortSignal, URL, URLSearchParams,
+    const context = {
+        module, AbortController, URL, URLSearchParams, setTimeout, clearTimeout,
         console: { log: message => diagnostics.push(message) },
         require(id) {
+            if (id === '../shared/http_request.js') {
+                const helper = requireFromProvider.resolve(id);
+                const module = { exports: {} };
+                runInNewContext(readFileSync(helper, 'utf8'), {
+                    ...context, module, require: () => { throw new Error('Unexpected native module'); }
+                }, { filename: helper });
+                return module.exports;
+            }
             if (id === '../shared/config.js') {
                 return { loadConfig: async () => {}, val: () => base, wrapAll: exports => exports };
             }
@@ -65,7 +73,8 @@ function fixture({ cards, listing, href, candidates, playerUrl = video, streamin
             }
             return { ok: false };
         }
-    }, { filename });
+    };
+    runInNewContext(readFileSync(filename, 'utf8'), context, { filename });
     return {
         getStreams: (season = 2, episode = 7, id = '901') => module.exports.getStreams(id, 'tv', season, episode),
         getDirectStreams: slug => module.exports.getStreams('tvdiziler:ep:' + slug),
