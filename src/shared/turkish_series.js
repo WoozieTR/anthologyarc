@@ -178,8 +178,15 @@ async function resolveSeriesInfo(rawId, mediaType, apiKey) {
   out.numericId = numericId;
   out.type = foundType;
 
-  // Details (tr-TR gives Turkish primary names for most Turkish series).
-  var dres = await tmdbJson(TMDB_API_BASE + '/' + foundType + '/' + numericId + '?api_key=' + key + '&language=tr-TR');
+  var resource = TMDB_API_BASE + '/' + foundType + '/' + numericId;
+  var [dres, ext, trs, alt] = await Promise.all([
+    tmdbJson(resource + '?api_key=' + key + '&language=tr-TR'),
+    tmdbJson(resource + '/external_ids?api_key=' + key),
+    tmdbJson(resource + '/translations?api_key=' + key),
+    foundType === 'movie' ? tmdbJson(resource + '/alternative_titles?api_key=' + key + '&country=TR') : null
+  ]);
+
+  // Apply results in order so alias precedence is independent of completion order.
   if (dres) {
     name = dres.name || dres.title || name;
     original = dres.original_name || dres.original_title || original;
@@ -189,12 +196,10 @@ async function resolveSeriesInfo(rawId, mediaType, apiKey) {
   out.origTitle = original || name || norm.id;
 
   // External ids (imdb) + translations (Turkish aliases) + alternative titles.
-  var ext = await tmdbJson(TMDB_API_BASE + '/' + foundType + '/' + numericId + '/external_ids?api_key=' + key);
   if (ext && ext.imdb_id) {
     out.imdbId = ext.imdb_id;
     out.aliases.push(ext.imdb_id);
   }
-  var trs = await tmdbJson(TMDB_API_BASE + '/' + foundType + '/' + numericId + '/translations?api_key=' + key);
   if (trs && trs.translations) {
     for (var t = 0; t < trs.translations.length; t++) {
       var trName = trs.translations[t].data && trs.translations[t].data.name;
@@ -203,13 +208,10 @@ async function resolveSeriesInfo(rawId, mediaType, apiKey) {
       }
     }
   }
-  if (foundType === 'movie') {
-    var alt = await tmdbJson(TMDB_API_BASE + '/movie/' + numericId + '/alternative_titles?api_key=' + key + '&country=TR');
-    if (alt && alt.titles) {
-      for (var a = 0; a < alt.titles.length; a++) {
-        var tn = alt.titles[a].title;
-        if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
-      }
+  if (alt && alt.titles) {
+    for (var a = 0; a < alt.titles.length; a++) {
+      var tn = alt.titles[a].title;
+      if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
     }
   }
 

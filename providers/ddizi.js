@@ -423,7 +423,13 @@ var require_turkish_series = __commonJS({
         if (!numericId) return out;
         out.numericId = numericId;
         out.type = foundType;
-        var dres = yield tmdbJson(TMDB_API_BASE + "/" + foundType + "/" + numericId + "?api_key=" + key + "&language=tr-TR");
+        var resource = TMDB_API_BASE + "/" + foundType + "/" + numericId;
+        var [dres, ext, trs, alt] = yield Promise.all([
+          tmdbJson(resource + "?api_key=" + key + "&language=tr-TR"),
+          tmdbJson(resource + "/external_ids?api_key=" + key),
+          tmdbJson(resource + "/translations?api_key=" + key),
+          foundType === "movie" ? tmdbJson(resource + "/alternative_titles?api_key=" + key + "&country=TR") : null
+        ]);
         if (dres) {
           name = dres.name || dres.title || name;
           original = dres.original_name || dres.original_title || original;
@@ -431,12 +437,10 @@ var require_turkish_series = __commonJS({
         }
         out.title = name || norm.id;
         out.origTitle = original || name || norm.id;
-        var ext = yield tmdbJson(TMDB_API_BASE + "/" + foundType + "/" + numericId + "/external_ids?api_key=" + key);
         if (ext && ext.imdb_id) {
           out.imdbId = ext.imdb_id;
           out.aliases.push(ext.imdb_id);
         }
-        var trs = yield tmdbJson(TMDB_API_BASE + "/" + foundType + "/" + numericId + "/translations?api_key=" + key);
         if (trs && trs.translations) {
           for (var t = 0; t < trs.translations.length; t++) {
             var trName = trs.translations[t].data && trs.translations[t].data.name;
@@ -445,13 +449,10 @@ var require_turkish_series = __commonJS({
             }
           }
         }
-        if (foundType === "movie") {
-          var alt = yield tmdbJson(TMDB_API_BASE + "/movie/" + numericId + "/alternative_titles?api_key=" + key + "&country=TR");
-          if (alt && alt.titles) {
-            for (var a = 0; a < alt.titles.length; a++) {
-              var tn = alt.titles[a].title;
-              if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
-            }
+        if (alt && alt.titles) {
+          for (var a = 0; a < alt.titles.length; a++) {
+            var tn = alt.titles[a].title;
+            if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
           }
         }
         var seen = {};
