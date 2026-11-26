@@ -1,8 +1,8 @@
 {
-  "name": "Anthology",
+  "name": "Anthology ARC",
   "version": "1.8.42",
   "author": "falsisdev",
-  "description": "Anthology - Türkçe Dizi, Film, Anime ve Canlı TV/Spor Eklenti Deposu",
+  "description": "Anthology ARC - Türkçe Dizi, Film, Anime ve Canlı TV/Spor Eklenti Deposu",
   "scrapers": [
     {
       "id": "anthology_m3u",
