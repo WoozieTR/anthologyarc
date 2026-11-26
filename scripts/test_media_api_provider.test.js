@@ -1,9 +1,10 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { createMediaApiProvider } = require('../src/shared/media_api_provider.js');
-const fixtures = require('./fixtures/media_api_providers.js');
+const { mediaApiProviders } = require('./fixtures/media_api_config.json');
 const { mockNuvioDesktop } = require('./fixtures/nuvio_desktop_fetch.js');
 
+const fixtures = mediaApiProviders.map(({ id, ...config }) => ({ config, provider: createMediaApiProvider(config) }));
 const { config, provider } = fixtures[0];
 const movie = {
     id: '42',
@@ -170,6 +171,7 @@ test('rejects invalid endpoint and origin configuration', () => {
         { streamsPath: '//other.invalid/streams' },
         { streamsPath: '/v1/../streams' },
         { streamsPath: '/streams?fixed=1' },
+        { streamsPath: '/streams?' },
         { streamOrigins: [] },
         { streamOrigins: ['http://media.alpha.invalid'] },
         { streamOrigins: ['https://media.alpha.invalid/path'] },

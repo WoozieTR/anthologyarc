@@ -8,6 +8,7 @@ authorized JSON API that documents this contract. The factory exposes
 
 | Option | Value |
 | --- | --- |
+| `id` | Unique build ID. Use 1–252 lowercase ASCII letters, digits, underscores or hyphens, starting with a letter or digit. Existing source IDs, `shared`, and reserved device filenames are unavailable. |
 | `name` | Provider display name |
 | `apiOrigin` | Canonical HTTPS origin of the API, optionally with a trailing slash |
 | `streamsPath` | Root-relative endpoint path with no query or fragment |
@@ -16,6 +17,18 @@ authorized JSON API that documents this contract. The factory exposes
 
 Origins match by scheme, hostname and port. Approve each playback origin
 explicitly, including the API origin if it serves playback URLs.
+
+Add an object with these fields to the top-level `mediaApiProviders` array in
+`config.json` to build a provider for an authorized API. Definitions use the
+shared entry `src/shared/media_api_entry.js`. The build validates every definition
+before writing bundles and embeds only the selected provider's adapter settings
+in its bundle. The `id` fixes its output to `providers/<id>.js`. Custom output
+paths and linked output files are rejected.
+
+Run `npm run build:providers -- <id>` to build one provider, or
+`npm run build:providers` to build all source and configured providers.
+`--minify` applies to both. Restart watch mode after editing `config.json`.
+Manifest registration is separate from building.
 
 ## Request and response
 
@@ -80,7 +93,11 @@ reading. An AbortController also requests cancellation when available.
 NuvioDesktop 0.1.39-alpha ignores AbortSignal, so native HTTP may continue
 after the adapter returns an empty result. Its eventual response is discarded.
 
-Two synthetic configurations in `scripts/fixtures/media_api_providers.js`
-exercise the same contract with mocked HTTP responses, including a fixture
-for the Desktop bindings. Run the tests offline with
-`node --test scripts/test_media_api_provider.test.js`.
+[`scripts/fixtures/media_api_config.json`](../scripts/fixtures/media_api_config.json)
+contains two test-only definitions using reserved `.invalid` origins. The build
+test creates both bundles in a temporary directory and exercises their exports
+with mocked HTTP responses. The adapter tests also cover Desktop bindings.
+
+```sh
+node --test scripts/test_media_api_provider.test.js scripts/test_media_api_build.test.js
+```

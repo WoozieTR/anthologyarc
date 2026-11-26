@@ -87,7 +87,7 @@ function createMediaApiProvider({ name, apiOrigin, streamsPath, streamOrigins, t
         throw new TypeError('Expected an absolute endpoint path');
     }
     const endpoint = parseHttpsUrl(origin + streamsPath);
-    if (endpoint.origin !== origin || endpoint.pathname !== streamsPath || endpoint.search) {
+    if (endpoint.origin !== origin || endpoint.pathname !== streamsPath || streamsPath.includes('?')) {
         throw new TypeError('Expected a canonical endpoint path without a query');
     }
     const approvedOrigins = new Set(Array.from(streamOrigins, parseOrigin));

@@ -1,0 +1,18 @@
+{
+  "mediaApiProviders": [
+    {
+      "id": "media_api_sample_alpha",
+      "name": "Sample A",
+      "apiOrigin": "https://api.alpha.invalid",
+      "streamsPath": "/v1/streams",
+      "streamOrigins": ["https://media.alpha.invalid"]
+    },
+    {
+      "id": "media_api_sample_beta",
+      "name": "Sample B",
+      "apiOrigin": "https://api.beta.invalid:8443",
+      "streamsPath": "/catalog/playback",
+      "streamOrigins": ["https://media.beta.invalid:9443"]
+    }
+  ]
+}
