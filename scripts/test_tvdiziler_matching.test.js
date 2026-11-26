@@ -64,7 +64,7 @@ function fixture({ cards, listing, href, candidates, title = 'Yeraltı', seasons
         }
     }, { filename });
     return {
-        getStreams: (season = 2, episode = 7) => module.exports.getStreams('901', 'tv', season, episode),
+        getStreams: (season = 2, episode = 7, id = '901') => module.exports.getStreams(id, 'tv', season, episode),
         getDirectStreams: slug => module.exports.getStreams('tvdiziler:ep:' + slug),
         requests,
         diagnostics
@@ -111,6 +111,69 @@ test('TvDiziler normalizes HTML entities before exact series matching', async ()
         assert.ok(f.diagnostics.includes(
             '[TvDiziler] series_match {"accepted":0,"rejected":1,"title_mismatch":1,"missing_slug":0}'
         ));
+    }
+});
+
+const titleComparisons = f => f.diagnostics
+    .filter(line => line.startsWith('[TvDiziler] series_title_mismatch '))
+    .map(line => JSON.parse(line.slice(line.indexOf('{'))));
+
+test('TvDiziler logs bounded title metadata only for rejected comparisons', async () => {
+    const f = fixture({
+        cards: card('/dizi/baska', 'Ba&#351;ka&nbsp;Dizi (2026)') +
+            card('/dizi/uzun', 'Başka '.repeat(30).trim()) + card(show, 'Yeraltı')
+    });
+    await f.getStreams();
+
+    const comparisons = titleComparisons(f);
+    assert.equal(comparisons.length, 2);
+    assert.deepEqual(comparisons[0], {
+        expected_title: 'Yeraltı',
+        candidate_title: 'Ba&#351;ka&nbsp;Dizi (2026)',
+        decoded_candidate_title: 'Başka Dizi (2026)',
+        expected_key: 'yeralti',
+        candidate_key: 'ba351kanbspdizi',
+        decoded_candidate_key: 'baskadizi'
+    });
+    for (const key of ['candidate_title', 'decoded_candidate_title', 'candidate_key', 'decoded_candidate_key']) {
+        assert.equal(comparisons[1][key].length, 96);
+    }
+});
+
+test('TvDiziler suppresses unsafe titles and their comparison keys', async () => {
+    const unsafe = [
+        'Başka '.repeat(20) + 'https&#58;&#47;&#47;fixture.invalid',
+        'fixture.invalid',
+        'Authorization&#58; Bearer FixtureSecret',
+        'api_key=FixtureSecret',
+        'fixture&#64;example.invalid',
+        '0532 123 45 67',
+        '0123456789abcdef0123456789abcdef',
+        'Başka&#10;Dizi'
+    ];
+    const f = fixture({ cards: unsafe.map(title => card('/dizi/private', title)).join('') });
+    await f.getStreams();
+
+    const comparisons = titleComparisons(f);
+    assert.equal(comparisons.length, unsafe.length);
+    for (const comparison of comparisons) {
+        assert.deepEqual(comparison, {
+            expected_title: 'Yeraltı',
+            candidate_title: null,
+            decoded_candidate_title: null,
+            expected_key: 'yeralti',
+            candidate_key: null,
+            decoded_candidate_key: null
+        });
+    }
+
+    for (const [title, id] of [['Private Input', 'Private Input'], ['test@example.invalid', '901']]) {
+        const expected = fixture({ title, cards: card('/dizi/baska', 'Başka Dizi') });
+        await expected.getStreams(2, 7, id);
+        const [comparison] = titleComparisons(expected);
+        assert.equal(comparison.expected_title, null);
+        assert.equal(comparison.expected_key, null);
+        assert.equal(comparison.candidate_title, 'Başka Dizi');
     }
 });
 
@@ -198,7 +261,7 @@ test('TvDiziler skips wrong YouTube results and keeps existing quality and nativ
 test('TvDiziler reports fixed series and episode decisions and the successful origin', async () => {
     const href = '/yeralti-2-sezon-7-bolum';
     const f = fixture({
-        cards: card('/dizi/private-series', 'Private title') + card(show, 'Yeraltı'),
+        cards: card('/dizi/private-series', 'Başka Dizi') + card(show, 'Yeraltı'),
         listing: row('/private-link?token=fixture', 7, 'Private response') +
             row('/other-23-bolum', 23, '23. Bölüm') +
             row('/yeralti-24-bolum', 24, '24. Bölüm') +
@@ -208,7 +271,9 @@ test('TvDiziler reports fixed series and episode decisions and the successful or
     });
 
     assert.equal((await f.getStreams())[0]?.url, video);
+    assert.equal(titleComparisons(f).length, 1);
     assert.deepEqual(f.diagnostics, [
+        '[TvDiziler] series_title_mismatch {"expected_title":"Yeraltı","candidate_title":"Başka Dizi","decoded_candidate_title":"Başka Dizi","expected_key":"yeralti","candidate_key":"baskadizi","decoded_candidate_key":"baskadizi"}',
         '[TvDiziler] series_match {"accepted":1,"rejected":1,"title_mismatch":1,"missing_slug":0}',
         '[TvDiziler] episode_match {"origin":"episode_list","accepted":1,"rejected":3,"invalid_link":1,"series_mismatch":1,"number_mismatch":1}',
         '[TvDiziler] result {"origin":"episode_list","count":1}'
