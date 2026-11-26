@@ -81,9 +81,9 @@ test('reuses frozen options and headers with a fresh signal and cleans up after 
     const headers = Object.freeze({ Accept: 'application/json' });
     const options = Object.freeze({ headers, method: 'GET' });
 
-    assert.equal(await http.fetchWithTimeout(url, options, deadline), response);
+    assert.equal((await http.fetchWithTimeout(url, options, deadline)).status, response.status);
     http.advance(deadline);
-    assert.equal(await http.fetchWithTimeout(url, options, deadline), response);
+    assert.equal((await http.fetchWithTimeout(url, options, deadline)).status, response.status);
     assert.deepEqual(http.cleared, [0, 1]);
     assert.equal(http.timers.size, 0);
     assert.notEqual(requests[0].signal, requests[1].signal);
@@ -127,4 +127,54 @@ test('keeps caller cancellation and removes its listener after abort, timeout or
             assert.deepEqual(remove.mock.calls[0].arguments, add.mock.calls[0].arguments);
         });
     }
+});
+
+test('body readers and clones share the original deadline with native response properties', { timeout: 1000 }, async () => {
+    let transportSignal;
+    const original = new Response(new ReadableStream({}), {
+        status: 202, headers: { 'Content-Type': 'text/plain' }
+    });
+    const http = loadHttp((_, options) => {
+        transportSignal = options.signal;
+        return original;
+    });
+    const response = await http.fetchWithTimeout(url, {}, deadline);
+    assert.ok(response instanceof Response);
+    assert.equal(response.constructor, Response);
+    assert.equal(response.status, 202);
+    assert.equal(response.headers.get('content-type'), 'text/plain');
+    assert.equal(response.body, original.body);
+    assert.equal(response.bodyUsed, false);
+    const clone = response.clone();
+    http.advance(deadline - 1);
+    const first = assert.rejects(response.text(), { message: 'Request timeout' });
+    const second = assert.rejects(clone.arrayBuffer(), { message: 'Request timeout' });
+    await turn();
+    assert.equal(response.bodyUsed, true);
+    http.advance(1);
+    await Promise.all([first, second]);
+    assert.equal(transportSignal.aborted, true);
+    assert.equal(http.timers.size, 0);
+    await assert.rejects(response.json(), { message: 'Request timeout' });
+    assert.equal(http.timers.size, 0);
+});
+
+test('caller cancellation still interrupts a pending body read', { timeout: 1000 }, async () => {
+    const controller = new AbortController();
+    const http = loadHttp((_, options) => {
+        assert.equal(options.signal, controller.signal);
+        return {
+            text() { return new Promise(() => {}); },
+            json() { return { fixture: true }; }
+        };
+    });
+    const response = await http.fetchWithTimeout(url, { signal: controller.signal }, deadline);
+    assert.deepEqual(await response.json(), { fixture: true });
+    assert.equal(http.timers.size, 0);
+    const reason = new Error('caller cancelled');
+    const rejected = assert.rejects(response.text(), error => error === reason);
+    await turn();
+    controller.abort(reason);
+    await rejected;
+    assert.equal(http.timers.size, 0);
 });

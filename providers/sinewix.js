@@ -320,6 +320,30 @@ var require_http = __commonJS({
       })) fields["User-Agent"] = DEFAULT_UA;
       return fields;
     }
+    var bodyReaders = ["arrayBuffer", "blob", "bytes", "formData", "json", "text"];
+    function responseWithDeadline(response, run) {
+      if (!response) return response;
+      var methods = /* @__PURE__ */ new Map();
+      return new Proxy(response, {
+        get: function(target, key) {
+          var value = Reflect.get(target, key, target);
+          if (typeof value !== "function" || key === "constructor") return value;
+          if (!methods.has(key)) {
+            methods.set(key, function() {
+              var args = arguments;
+              if (bodyReaders.indexOf(key) !== -1) {
+                return run(function() {
+                  return value.apply(target, args);
+                });
+              }
+              var result = value.apply(target, args);
+              return key === "clone" ? responseWithDeadline(result, run) : result;
+            });
+          }
+          return methods.get(key);
+        }
+      });
+    }
     function fetchWithTimeout(url, options, ms) {
       var deadline = Date.now() + (ms || 1e4);
       var fetchOptions = Object.assign({}, options);
@@ -327,10 +351,15 @@ var require_http = __commonJS({
       var signal = fetchOptions.signal;
       var controller = !signal && typeof AbortController === "function" ? new AbortController() : null;
       if (controller) fetchOptions.signal = controller.signal;
-      return withDeadline(deadline, signal, function(error) {
-        if (controller) controller.abort(error);
-      }, function() {
+      function run(operation) {
+        return withDeadline(deadline, signal, function(error) {
+          if (controller) controller.abort(error);
+        }, operation);
+      }
+      return run(function() {
         return fetch(url, fetchOptions);
+      }).then(function(response) {
+        return responseWithDeadline(response, run);
       });
     }
     module2.exports = {
