@@ -27,10 +27,17 @@ function inspectSample(sample) {
   return { outcome: "unverified", reason: "Unknown media signature" };
 }
 
-async function checkHttp(url, headers = {}) {
+function sampleHeaders(headers) {
   const requestHeaders = new Headers(headers || {});
   requestHeaders.set("Range", `bytes=0-${SAMPLE_BYTES - 1}`);
+  return requestHeaders;
+}
 
+async function checkHttp(url, headers = {}) {
+  return checkHttpSample(url, sampleHeaders(headers));
+}
+
+async function checkHttpSample(url, requestHeaders) {
   async function probe() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -92,13 +99,22 @@ async function checkHttp(url, headers = {}) {
 async function checkStreams(streams) {
   const counts = { media: 0, unverified: 0, failed: 0 };
   const details = {};
-  const sample = streams.slice(0, 3);
-  for (const stream of sample) {
-    const check = stream.ytId
-      ? { outcome: "unverified", reason: `YouTube (${stream.ytId})` }
-      : stream.url
-        ? await checkHttp(stream.url, stream.headers)
-        : { outcome: "unverified", reason: "No URL to check" };
+  const confirmed = new Set();
+  for (const stream of streams.slice(0, 3)) {
+    let check;
+    if (stream.ytId) {
+      check = { outcome: "unverified", reason: `YouTube (${stream.ytId})` };
+    } else if (stream.url) {
+      const headers = sampleHeaders(stream.headers);
+      // Use the exact URL and effective initial GET headers. Failed or
+      // inconclusive probes must remain eligible for a later check.
+      const key = typeof stream.url === "string" ? JSON.stringify([stream.url, [...headers]]) : null;
+      if (confirmed.has(key)) continue;
+      check = await checkHttpSample(stream.url, headers);
+      if (key !== null && check.outcome === "media") confirmed.add(key);
+    } else {
+      check = { outcome: "unverified", reason: "No URL to check" };
+    }
     counts[check.outcome]++;
     details[check.outcome] ??= check.status
       ? `HTTP ${check.status}${check.reason ? ` (${check.reason})` : ""}`
@@ -107,7 +123,8 @@ async function checkStreams(streams) {
 
   const outcome = counts.media ? "media" : counts.unverified ? "unverified" : "failed";
   const status = { media: "HTTP MEDIA FOUND", unverified: "UNVERIFIED", failed: "HTTP CHECK FAILED" };
-  return { ...counts, checked: sample.length, status: status[outcome], details: details[outcome] };
+  const checked = counts.media + counts.unverified + counts.failed;
+  return { ...counts, checked, status: status[outcome], details: details[outcome] };
 }
 
 async function main() {

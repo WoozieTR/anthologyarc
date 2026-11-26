@@ -50,7 +50,7 @@ test("recognizes media signatures across chunks regardless of MIME hints", async
   ];
   t.mock.method(globalThis, "fetch", async () => fixtures.shift());
 
-  const result = await checkStreams(Array.from({ length: 3 }, () => ({ url, headers })));
+  const result = await checkStreams(["binary", "hls", "dash"].map((format) => ({ url: `${url}/${format}`, headers })));
   assert.equal(result.status, "HTTP MEDIA FOUND");
   assert.equal(result.media, 3);
 });
