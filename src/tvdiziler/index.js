@@ -31,7 +31,7 @@ var HEADERS = {
     'Referer': BASE_URL + '/'
 };
 
-// Diagnostics use only fixed labels and counts, never candidate or response data.
+// Callers pass fixed fields and sanitize any public title metadata.
 function diagnostic(stage, fields) {
     try {
         if (typeof console !== 'undefined' && typeof console.log === 'function') {
@@ -159,6 +159,29 @@ function decodeSearchTitle(title) {
 
 function seriesKey(title) {
     return asciiFold(title).replace(/[^a-z0-9]/g, '');
+}
+
+const TITLE_LOG_LIMIT = 96;
+
+function isLoggableSeriesTitle(title) {
+    // Check the whole value before truncation so an unsafe suffix also suppresses the key.
+    return title.length <= 512 &&
+        /^[\p{L}\p{M}0-9 .,'’()!–—-]+$/u.test(title) &&
+        !/\.[a-z]|\b(?:bearer|authorization|cookie|password|token|api[ -]?key)\b/i.test(title) &&
+        !/[a-z0-9]{24}|\d(?:[ .()-]*\d){6}/i.test(title);
+}
+
+function logRejectedSeriesTitle(expected, expectedKey, candidate, decoded, decodedKey) {
+    const safeExpected = expected !== null && isLoggableSeriesTitle(expected);
+    const safeCandidate = candidate.length <= 512 && isLoggableSeriesTitle(decoded);
+    diagnostic('series_title_mismatch', {
+        expected_title: safeExpected ? expected.slice(0, TITLE_LOG_LIMIT) : null,
+        candidate_title: safeCandidate ? candidate.slice(0, TITLE_LOG_LIMIT) : null,
+        decoded_candidate_title: safeCandidate ? decoded.slice(0, TITLE_LOG_LIMIT) : null,
+        expected_key: safeExpected ? expectedKey.slice(0, TITLE_LOG_LIMIT) : null,
+        candidate_key: safeCandidate ? seriesKey(cleanSeriesTitle(candidate)).slice(0, TITLE_LOG_LIMIT) : null,
+        decoded_candidate_key: safeCandidate ? decodedKey.slice(0, TITLE_LOG_LIMIT) : null
+    });
 }
 
 function lastPathSegment(href) {
@@ -868,8 +891,12 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             var results = await searchTvDiziler(cleanQuery);
             var titleMismatch = 0;
             var matchedShow = results.find(result => {
-                if (seriesKey(cleanSeriesTitle(decodeSearchTitle(result.title))) === cleanTarget) return true;
+                const decoded = decodeSearchTitle(result.title);
+                const decodedKey = seriesKey(cleanSeriesTitle(decoded));
+                if (decodedKey === cleanTarget) return true;
                 titleMismatch++;
+                const expected = nrm.kind === 'title' && cleanQuery === cleanSeriesTitle(nrm.id) ? null : cleanQuery;
+                logRejectedSeriesTitle(expected, cleanTarget, result.title, decoded, decodedKey);
                 return false;
             });
             var missingSlug = matchedShow && !matchedShow.slug ? 1 : 0;
