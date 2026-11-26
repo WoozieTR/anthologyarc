@@ -129,7 +129,7 @@ for (const [name, provider] of Object.entries(providers)) {
     const override = 'https://' + name + '.fixture.invalid';
 
     for (const { configDelay, host, firstSite } of [
-        { configDelay: 120, host: override, firstSite: 300 },
+        { configDelay: 120, host: override, firstSite: 120 },
         { configDelay: 1000, host: override, firstSite: 1000 },
         { configDelay: null, host: provider.base, firstSite: 8000 }
     ]) {
@@ -140,7 +140,7 @@ for (const [name, provider] of Object.entries(providers)) {
             );
             assert.equal(requests.length, 8);
             assert.deepEqual(requests.filter(req => req.url === configUrl).map(req => req.at), [0]);
-            assert.deepEqual(requests.filter(req => req.url.startsWith(tmdb)).map(req => req.at), [0, 100, 200]);
+            assert.deepEqual(requests.filter(req => req.url.startsWith(tmdb)).map(req => req.at), [0, 0, 0]);
             const siteRequests = requests.filter(req => req.url.startsWith(host + '/'));
             assert.deepEqual(siteRequests.map(req => req.url), [
                 provider.search, provider.show, provider.episode, provider.player
