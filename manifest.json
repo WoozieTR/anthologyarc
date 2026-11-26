@@ -1617,7 +1617,7 @@
     {
       "author": "falsisdev",
       "version": "1.8.42",
-      "enabled": true,
+      "enabled": false,
       "supportsExternalPlayer": true,
       "id": "trdiziizle",
       "name": "TR Dizi İzle",
