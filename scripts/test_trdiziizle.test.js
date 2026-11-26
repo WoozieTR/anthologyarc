@@ -34,6 +34,7 @@ function fetchFixtures(t, routes, youtube = {}, metadata) {
             throw new Error('No fixture for ' + url.pathname);
         }
         if (body instanceof Error) throw body;
+        if (typeof body === 'number') return { ok: false, status: body };
         return { ok: true, status: 200, text: async () => body, json: async () => body };
     });
     t.after(() => assert.deepEqual(unexpected, []));
@@ -80,6 +81,7 @@ test('YouTube rejects mismatched or unverified results and keeps a verified epis
 });
 
 test('YouTube retains a real first episode and labels MP4 using its own metadata', async (t) => {
+    const log = t.mock.method(console, 'log', () => {});
     fetchFixtures(t, new Map(siteDown), {
         search: () => ['fixture0001'],
         videos: {
@@ -95,6 +97,9 @@ test('YouTube retains a real first episode and labels MP4 using its own metadata
     assert.match(stream.title, /480p/);
     assert.equal(hlsStream.url, hls);
     assert.equal(hlsStream.quality, undefined);
+    assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
+    assert.match(log.mock.calls[0].arguments[0],
+        /^\[trdiziizle\] success origin=youtube-fallback elapsedMs=\d+ verifiedResolution=480p resultCount=2$/);
 });
 
 test('YouTube MP4 without resolution metadata has no resolution label', async (t) => {
@@ -140,6 +145,7 @@ test('YouTube selects the highest resolution from unordered progressive MP4 form
 });
 
 test('YouTube uses explicit height when the MP4 has no resolution label', async (t) => {
+    const log = t.mock.method(console, 'log', () => {});
     fetchFixtures(t, new Map(siteDown), {
         search: () => ['fixture0001'],
         videos: {
@@ -155,6 +161,9 @@ test('YouTube uses explicit height when the MP4 has no resolution label', async 
     assert.equal(stream.url, mp4);
     assert.equal(stream.quality, undefined);
     assert.doesNotMatch(stream.title, /\d+p/i);
+    assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
+    assert.match(log.mock.calls[0].arguments[0],
+        /^\[trdiziizle\] success origin=youtube-fallback elapsedMs=\d+ verifiedResolution=1080p resultCount=1$/);
 });
 
 test('YouTube excludes video-only and audio-only formats and leaves adaptive HLS available', async (t) => {
@@ -178,6 +187,7 @@ test('YouTube excludes video-only and audio-only formats and leaves adaptive HLS
 });
 
 test('direct episode IDs preserve iframe streams without claiming a resolution', async (t) => {
+    const log = t.mock.method(console, 'log', () => {});
     fetchFixtures(t, new Map([
         [episodePage, embed(iframe) + embed(youtubeEmbed)],
         [iframe, '"' + hls + '" "' + mp4 + '" "' + mp4 + '"']
@@ -191,6 +201,9 @@ test('direct episode IDs preserve iframe streams without claiming a resolution',
         assert.equal(stream.quality, undefined);
         assert.doesNotMatch(stream.title, /1080p|720p/);
     }
+    assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
+    assert.match(log.mock.calls[0].arguments[0],
+        /^\[trdiziizle\] success origin=wordpress elapsedMs=\d+ verifiedResolution=unknown resultCount=3$/);
 });
 
 function wp(t, links) {
@@ -209,6 +222,7 @@ test('WordPress does not fall back to unmarked season-one links for season two',
 });
 
 test('WordPress reads a Turkish number-first episode label on the requested season page', async (t) => {
+    const log = t.mock.method(console, 'log', () => {});
     const seasonPage = 'https://fixture.invalid/ornek-2-sezon-izle/';
     fetchFixtures(t, new Map([
         [base + '/', 'reachable'],
@@ -219,6 +233,9 @@ test('WordPress reads a Turkish number-first episode label on the requested seas
         [iframe, '"' + hls + '"']
     ]), { search: () => [] });
     assert.deepEqual((await getStreams(title, 'tv', 2, 3)).map(stream => stream.url), [hls]);
+    assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
+    assert.match(log.mock.calls[0].arguments[0],
+        /^\[trdiziizle\] success origin=wordpress elapsedMs=\d+ verifiedResolution=unknown resultCount=1$/);
 });
 
 test('WordPress rejects an episode link with a conflicting season label', async (t) => {
@@ -241,6 +258,7 @@ const seriesMetadata = {
 };
 
 test('YouTube accepts the exact compact season and episode and retains verified 360p', async (t) => {
+    const log = t.mock.method(console, 'log', () => {});
     fetchFixtures(t, new Map(siteDown), {
         search: () => ['fixture0001', 'fixture0002', 'fixture0003', 'fixture0004'],
         videos: {
@@ -254,6 +272,9 @@ test('YouTube accepts the exact compact season and episode and retains verified 
     }, seriesMetadata);
     const streams = await getStreams('123', 'tv', 2, 8);
     assert.deepEqual(streams.map(stream => [stream.url, stream.quality]), [[mp4, '360p']]);
+    assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
+    assert.match(log.mock.calls[0].arguments[0],
+        /^\[trdiziizle\] success origin=youtube-fallback elapsedMs=\d+ verifiedResolution=360p resultCount=1$/);
 });
 
 test('YouTube tries the verified cumulative search before the other sequential searches', async (t) => {
@@ -306,7 +327,7 @@ test('an empty fallback logs stage counts and elapsed time without response data
     assert.equal(log.mock.callCount(), 1);
     assert.equal(log.mock.calls[0].arguments.length, 1);
     assert.match(log.mock.calls[0].arguments[0],
-        /^\[trdiziizle\] empty stage=youtube elapsedMs=\d+ cumulative=false wordpress=unavailable seasonPageErrors=0 searchErrors=0 playerErrors=1 shortCandidates=1 episodeMismatches=1 noPlayableFormats=1$/);
+        /^\[trdiziizle\] empty stage=youtube elapsedMs=\d+ cumulative=false cumulativeEpisode=null wordpress=unavailable seasonPageErrors=0 searchErrors=0 playerErrors=1 shortCandidates=1 episodeMismatches=1 youtubeTitleRejections=0 youtubeSeasonRejections=0 youtubeEpisodeRejections=1 noPlayableFormats=1$/);
 });
 
 test('YouTube finds cumulative episode 24 and preserves strict season, episode and title checks', async (t) => {
@@ -349,4 +370,33 @@ test('YouTube does not guess a cumulative episode when a previous season count i
     }, { name: title, seasons: [{ season_number: 2, episode_count: 12 }] });
     assert.deepEqual(await getStreams('123', 'tv', 2, 8), []);
     assert.deepEqual(queries, [title + ' 2. Sezon 8. Bölüm', title + ' 8. Bölüm']);
+});
+
+test('failed searches distinguish WordPress candidates and YouTube rejection reasons', async (t) => {
+    for (const [status, searchHtml] of [
+        ['zero-candidates', '<p>No results</p>'],
+        ['search-error', 503],
+        ['title-rejected', '<article>' + link(seriesPage, 'Başka Yapım') + '</article>']
+    ]) {
+        await t.test(status, async (child) => {
+            const log = child.mock.method(console, 'log', () => {});
+            fetchFixtures(child, new Map([
+                [base + '/', 'reachable'],
+                [base + '/?s=' + encodeURIComponent(title), searchHtml]
+            ]), {
+                search: query => query === title + ' 24. Bölüm' ?
+                    ['fixture0001', 'fixture0002', 'fixture0003'] : [],
+                videos: {
+                    fixture0001: video('Başka Yapım S02E08'),
+                    fixture0002: video(title + ' 1. Sezon 24. Bölüm'),
+                    fixture0003: video(title + ' S02E07')
+                }
+            }, seriesMetadata);
+            assert.deepEqual(await getStreams('123', 'tv', 2, 8), []);
+            assert.deepEqual(log.mock.calls.map(call => call.arguments.length), [1]);
+            const message = log.mock.calls[0].arguments[0];
+            assert.match(message, /^\[trdiziizle\] empty stage=youtube elapsedMs=\d+ cumulative=true cumulativeEpisode=24 wordpress=(?:zero-candidates|title-rejected|search-error) seasonPageErrors=0 searchErrors=0 playerErrors=0 shortCandidates=0 episodeMismatches=3 youtubeTitleRejections=1 youtubeSeasonRejections=1 youtubeEpisodeRejections=1 noPlayableFormats=0$/);
+            assert.ok(message.includes('wordpress=' + status + ' '));
+        });
+    }
 });
