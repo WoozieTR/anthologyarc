@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { createMediaApiProvider } = require('../src/shared/media_api_provider.js');
 const fixtures = require('./fixtures/media_api_providers.js');
+const { mockNuvioDesktop } = require('./fixtures/nuvio_desktop_fetch.js');
 
 const { config, provider } = fixtures[0];
 const movie = {
@@ -10,6 +11,8 @@ const movie = {
     streams: [{ url: config.streamOrigins[0] + '/film.mp4', format: 'mp4' }]
 };
 const series = { ...movie, type: 'series', season: 2, episode: 3 };
+const movieUrl = config.apiOrigin + config.streamsPath + '?id=42&type=movie';
+const seriesUrl = config.apiOrigin + config.streamsPath + '?id=42&type=series&season=2&episode=3';
 
 function mockApi(t, body, overrides = {}, expectedUrl) {
     return t.mock.method(globalThis, 'fetch', async (url, options) => {
@@ -17,7 +20,7 @@ function mockApi(t, body, overrides = {}, expectedUrl) {
         assert.equal(options.method, 'GET');
         assert.equal(options.headers.Accept, 'application/json');
         assert.equal(options.credentials, 'omit');
-        assert.equal(options.redirect, 'error');
+        assert.equal(options.redirect, 'manual');
         assert.ok(options.signal);
 
         if (overrides instanceof Error) throw overrides;
@@ -112,8 +115,9 @@ test('rejects the whole response if any stream uses an unapproved URL', async (t
 test('rejects network failures, redirects, and unexpected response URLs before reading JSON', async (t) => {
     const expectedUrl = config.apiOrigin + config.streamsPath + '?id=42&type=movie';
     for (const [label, overrides] of Object.entries({
-        'redirect rejected by Fetch': new TypeError('redirect'),
+        'network rejection': new TypeError('network error'),
         'redirect status': { status: 302, headers: new Headers({ Location: expectedUrl }) },
+        'opaque browser redirect': { type: 'opaqueredirect', status: 0, ok: false, url: '' },
         'redirected back to the same URL': { redirected: true },
         'different origin': { url: 'https://other.invalid/v1/streams?id=42&type=movie' },
         'different path on same origin': { url: config.apiOrigin + '/other?id=42&type=movie' },
@@ -168,8 +172,112 @@ test('rejects invalid endpoint and origin configuration', () => {
         { streamsPath: '/streams?fixed=1' },
         { streamOrigins: [] },
         { streamOrigins: ['http://media.alpha.invalid'] },
-        { streamOrigins: ['https://media.alpha.invalid/path'] }
+        { streamOrigins: ['https://media.alpha.invalid/path'] },
+        { trustManualRedirects: 'true' }
     ]) {
         assert.throws(() => createMediaApiProvider({ ...config, ...patch }), TypeError);
+    }
+});
+
+test('NuvioDesktop sends the complete query and accepts direct results with verified manual redirects', async (t) => {
+    const requests = mockNuvioDesktop(t, new Map([[seriesUrl, { json: async () => series }]]));
+    const desktop = createMediaApiProvider({ ...config, trustManualRedirects: true });
+    assert.deepEqual(await desktop.getStreams('42', 'series', 2, 3), [
+        { ...movie.streams[0], name: config.name, title: config.name, isHls: false }
+    ]);
+    assert.deepEqual(requests, [seriesUrl]);
+});
+
+test('a missing redirect flag fails closed without verified manual redirect support', async (t) => {
+    const json = t.mock.fn(async () => movie);
+    const requests = mockNuvioDesktop(t, new Map([[movieUrl, { json }]]));
+    assert.deepEqual(await provider.getStreams('42', 'movie'), []);
+    assert.deepEqual(requests, [movieUrl]);
+    assert.equal(json.mock.callCount(), 0);
+});
+
+test('verified manual redirect support still requires an exact URL and rejects a reported redirect', async (t) => {
+    for (const [label, overrides] of Object.entries({
+        'changed response URL': { url: config.apiOrigin + '/other?id=42&type=movie' },
+        'reported redirect': { redirected: true },
+        'malformed redirect flag': { redirected: null }
+    })) {
+        await t.test(label, async (t) => {
+            const json = t.mock.fn(async () => movie);
+            mockApi(t, movie, { ...overrides, json }, movieUrl);
+            const desktop = createMediaApiProvider({ ...config, trustManualRedirects: true });
+            assert.deepEqual(await desktop.getStreams('42', 'movie'), []);
+            assert.equal(json.mock.callCount(), 0);
+        });
+    }
+});
+
+test('NuvioDesktop does not follow redirects even to an approved origin', async (t) => {
+    for (const target of [config.apiOrigin + '/moved', 'https://unexpected.invalid/streams']) {
+        await t.test(target, async (t) => {
+            const json = t.mock.fn(async () => movie);
+            const requests = mockNuvioDesktop(t, new Map([
+                [movieUrl, { status: 302, location: target, json }],
+                [target, { json }]
+            ]));
+            const desktop = createMediaApiProvider({ ...config, trustManualRedirects: true });
+            assert.deepEqual(await desktop.getStreams('42', 'movie'), []);
+            assert.deepEqual(requests, [movieUrl]);
+            assert.equal(json.mock.callCount(), 0);
+        });
+    }
+});
+
+test('NuvioDesktop still rejects stream URLs outside the exact approved origin', async (t) => {
+    const json = t.mock.fn(async () => ({
+        ...movie,
+        streams: [{ ...movie.streams[0], url: 'https://media.alpha.invalid:9443/film.mp4' }]
+    }));
+    const requests = mockNuvioDesktop(t, new Map([[movieUrl, { json }]]));
+    const desktop = createMediaApiProvider({ ...config, trustManualRedirects: true });
+    assert.deepEqual(await desktop.getStreams('42', 'movie'), []);
+    assert.deepEqual(requests, [movieUrl]);
+    assert.equal(json.mock.callCount(), 1);
+});
+
+test('NuvioDesktop completes at one deadline even when Fetch ignores AbortSignal', async (t) => {
+    for (const phase of ['fetch', 'json']) {
+        await t.test(phase, async (t) => {
+            let finish;
+            const pending = new Promise((resolve) => { finish = resolve; });
+            const json = t.mock.fn(() => pending);
+            const requests = mockNuvioDesktop(t, new Map([[movieUrl, phase === 'fetch' ? pending : { json }]]));
+            let expire;
+            const timer = {};
+            const setTimer = t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
+                assert.equal(delay, 10000);
+                expire = callback;
+                return timer;
+            });
+            const clearTimer = t.mock.method(globalThis, 'clearTimeout');
+            const desktop = createMediaApiProvider({ ...config, trustManualRedirects: true });
+            const result = desktop.getStreams('42', 'movie');
+            // Flush the mock Fetch and Promise.race before expiring the shared timer.
+            await new Promise(setImmediate);
+            assert.deepEqual(requests, [movieUrl]);
+            assert.equal(json.mock.callCount(), phase === 'fetch' ? 0 : 1);
+            assert.equal(setTimer.mock.callCount(), 1);
+            expire();
+
+            const stillPending = Symbol('deadline did not complete the request');
+            assert.deepEqual(await Promise.race([result, new Promise((resolve) => {
+                setImmediate(resolve, stillPending);
+            })]), []);
+            assert.equal(clearTimer.mock.callCount(), 1);
+            assert.deepEqual(clearTimer.mock.calls[0].arguments, [timer]);
+
+            if (phase === 'fetch') {
+                finish({ json });
+                await new Promise(setImmediate);
+                assert.equal(json.mock.callCount(), 0);
+            } else {
+                finish(movie);
+            }
+        });
     }
 });

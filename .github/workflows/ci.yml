@@ -53,5 +53,8 @@ jobs:
       - name: Test content matching offline
         run: node --test scripts/test_content_matching.test.js scripts/test_trdiziizle.test.js scripts/test_ddizi_matching.test.js scripts/test_tvdiziler_matching.test.js
 
+      - name: Test media API adapter offline
+        run: node --test scripts/test_media_api_provider.test.js
+
       - name: Run Stremio addon validation
         run: npm run test:addon

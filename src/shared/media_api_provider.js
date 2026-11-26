@@ -1,5 +1,6 @@
-const { timeoutSignal } = require('./http.js');
 const { sortStreamsByQuality } = require('./quality.js');
+
+const REQUEST_TIMEOUT_MS = 10000;
 
 function parseHttpsUrl(value) {
     if (typeof value !== 'string' ||
@@ -37,10 +38,48 @@ function isRecord(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function createMediaApiProvider({ name, apiOrigin, streamsPath, streamOrigins }) {
+async function fetchMediaJson(url, trustManualRedirects) {
+    if (typeof setTimeout !== 'function' || typeof clearTimeout !== 'function') return null;
+
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timer;
+    try {
+        const deadline = new Promise((resolve) => {
+            timer = setTimeout(() => {
+                resolve(null);
+                if (controller) controller.abort();
+            }, REQUEST_TIMEOUT_MS);
+        });
+        const options = {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            credentials: 'omit',
+            redirect: 'manual'
+        };
+        if (controller) options.signal = controller.signal;
+
+        const response = await Promise.race([deadline, fetch(url, options)]);
+        if (!response || response.ok !== true || !Number.isInteger(response.status) ||
+            response.status < 200 || response.status >= 300 ||
+            response.type === 'opaqueredirect' || response.url !== url) return null;
+        if (response.redirected !== false &&
+            !(trustManualRedirects && !('redirected' in response))) return null;
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !/^application\/json(?:\s*;|\s*$)/i.test(contentType)) return null;
+        return await Promise.race([deadline, response.json()]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function createMediaApiProvider({ name, apiOrigin, streamsPath, streamOrigins, trustManualRedirects = false }) {
     if (typeof name !== 'string' || !name.trim() ||
         !Array.isArray(streamOrigins) || streamOrigins.length === 0) {
         throw new TypeError('Expected a provider name and at least one stream origin');
+    }
+    if (typeof trustManualRedirects !== 'boolean') {
+        throw new TypeError('Expected a boolean for trustManualRedirects');
     }
 
     const origin = parseOrigin(apiOrigin);
@@ -48,7 +87,7 @@ function createMediaApiProvider({ name, apiOrigin, streamsPath, streamOrigins })
         throw new TypeError('Expected an absolute endpoint path');
     }
     const endpoint = parseHttpsUrl(origin + streamsPath);
-    if (endpoint.origin !== origin || endpoint.pathname !== streamsPath) {
+    if (endpoint.origin !== origin || endpoint.pathname !== streamsPath || endpoint.search) {
         throw new TypeError('Expected a canonical endpoint path without a query');
     }
     const approvedOrigins = new Set(Array.from(streamOrigins, parseOrigin));
@@ -65,29 +104,13 @@ function createMediaApiProvider({ name, apiOrigin, streamsPath, streamOrigins })
         }
 
         try {
-            const url = new URL(endpoint.href);
-            url.searchParams.set('id', id);
-            url.searchParams.set('type', type);
+            // Desktop's URLSearchParams is detached from URL.href.
+            let query = 'id=' + encodeURIComponent(id) + '&type=' + type;
             if (type === 'series') {
-                url.searchParams.set('season', String(season));
-                url.searchParams.set('episode', String(episode));
+                query += '&season=' + season + '&episode=' + episode;
             }
 
-            const response = await fetch(url.href, {
-                method: 'GET',
-                headers: { Accept: 'application/json' },
-                credentials: 'omit',
-                redirect: 'error',
-                signal: timeoutSignal(10000)
-            });
-            if (!response || response.ok !== true || !Number.isInteger(response.status) ||
-                response.status < 200 || response.status >= 300 ||
-                response.redirected !== false || response.url !== url.href) return [];
-
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !/^application\/json(?:\s*;|\s*$)/i.test(contentType)) return [];
-
-            const body = await response.json();
+            const body = await fetchMediaJson(endpoint.href + '?' + query, trustManualRedirects);
             if (!isRecord(body) || body.id !== id || body.type !== type || !Array.isArray(body.streams)) {
                 return [];
             }

@@ -12,14 +12,15 @@ authorized JSON API that documents this contract. The factory exposes
 | `apiOrigin` | Canonical HTTPS origin of the API, optionally with a trailing slash |
 | `streamsPath` | Root-relative endpoint path with no query or fragment |
 | `streamOrigins` | Nonempty list of canonical HTTPS playback origins, optionally with trailing slashes |
+| `trustManualRedirects` | Defaults to `false`. Set to `true` only for a runtime verified to honor manual redirects but omit `Response.redirected`. |
 
 Origins match by scheme, hostname and port. Approve each playback origin
 explicitly, including the API origin if it serves playback URLs.
 
 ## Request and response
 
-The adapter sends a single GET with `Accept: application/json` and no ambient
-credentials. Query parameters are `id` and `type`. TMDB IDs are positive safe
+The adapter sends a single GET with `Accept: application/json` and
+`credentials: 'omit'`. Query parameters are `id` and `type`. TMDB IDs are positive safe
 integers or their canonical decimal strings. IMDb IDs are lowercase `tt`
 followed by at least seven decimal digits, with at least one nonzero digit.
 The request uses the string form of the ID.
@@ -58,11 +59,28 @@ objects with `quality` included when supplied. Other response fields are
 ignored. Invalid inputs, HTTP failures, redirects, malformed JSON, or any
 invalid stream yield an empty array. An empty `streams` array is also valid.
 
-The adapter requires a Fetch implementation that honors `redirect: 'error'`
-and reports the exact request URL and `redirected: false` on success. Origin
-validation covers the playback URLs returned by the API. The player handles
-subsequent playback requests.
+Origin validation covers the playback URLs returned by the API. The player
+handles subsequent playback requests.
+
+## Runtime requirements
+
+Fetch must honor `redirect: 'manual'`. A successful response must report the
+exact request URL and `redirected: false`. The adapter rejects 3xx responses,
+opaque redirects, and changed or missing response URLs.
+
+NuvioDesktop 0.1.39-alpha follows redirects for other Fetch modes, omits
+`Response.redirected`, and leaves `URL.href` unchanged when search parameters
+are mutated. The adapter serializes the query directly. Use
+`trustManualRedirects: true` with those verified Desktop bindings to accept
+an omitted redirect flag. Leave it disabled when the runtime's redirect
+behavior is unknown. An omitted flag then yields an empty result.
+
+A single 10-second JavaScript timer bounds the wait for Fetch and JSON
+reading. An AbortController also requests cancellation when available.
+NuvioDesktop 0.1.39-alpha ignores AbortSignal, so native HTTP may continue
+after the adapter returns an empty result. Its eventual response is discarded.
 
 Two synthetic configurations in `scripts/fixtures/media_api_providers.js`
-exercise the same contract with mocked HTTP responses. Run them offline with
+exercise the same contract with mocked HTTP responses, including a fixture
+for the Desktop bindings. Run the tests offline with
 `node --test scripts/test_media_api_provider.test.js`.
