@@ -101,14 +101,35 @@ async function siteReachable() {
 var seasonLabel = /\b(?:(\d+)\s*\.?\s*(?:sezon|season)|(?:sezon|season)\s*[:.-]?\s*(\d+))\b/;
 var episodeLabel = /\b(?:(\d+)\s*\.?\s*(?:bolumu?|episode)|(?:bolumu?|episode)\s*[:.#-]?\s*(\d+))\b/;
 
-function matchesYouTubeEpisode(videoTitle, titles, season, episode) {
+function cumulativeEpisodeNumber(seasons, season, episode) {
+    if (season === 1 || !Array.isArray(seasons) || season > seasons.length + 1) return null;
+    var total = episode;
+    for (var n = 1; n <= season; n++) {
+        var entry = seasons.find(function (item) { return item && item.season_number === n; });
+        var count = entry && entry.episode_count;
+        if (n === season) {
+            if (Number.isSafeInteger(count) && count >= 0 && episode > count) return null;
+        } else {
+            if (!Number.isSafeInteger(count) || count < 1) return null;
+            total += count;
+        }
+    }
+    return Number.isSafeInteger(total) ? total : null;
+}
+
+function matchesEpisodeNumber(match, explicitSeason, defaultSeason, season, episode, cumulative) {
+    if (!match || (explicitSeason && Number(explicitSeason[1] || explicitSeason[2]) !== season)) return false;
+    var number = Number(match[1] || match[2]);
+    return (number === episode && (explicitSeason || defaultSeason === season)) || number === cumulative;
+}
+
+function matchesYouTubeEpisode(videoTitle, titles, season, episode, cumulative) {
     var label = asciiFold(videoTitle);
     var seasonMatch = label.match(seasonLabel);
-    if (Number(seasonMatch ? (seasonMatch[1] || seasonMatch[2]) : 1) !== season) return false;
     if (seasonMatch) label = label.replace(seasonMatch[0], ' ');
 
     var match = label.match(episodeLabel);
-    if (!match || Number(match[1] || match[2]) !== episode) return false;
+    if (!matchesEpisodeNumber(match, seasonMatch, 1, season, episode, cumulative)) return false;
 
     var before = label.slice(0, match.index).trim().replace(/(?:[|–—]\s*)+$/, '');
     before = cleanTitle(before.split(/[|–—]/).pop());
@@ -144,7 +165,7 @@ function selectProgressiveMp4(formats) {
     return best;
 }
 
-async function resolveOfficialYouTubeFallback(titles, season, episode) {
+async function resolveOfficialYouTubeFallback(titles, season, episode, cumulative) {
     try {
         var title = titles[0];
         var queries = [];
@@ -152,6 +173,7 @@ async function resolveOfficialYouTubeFallback(titles, season, episode) {
             queries.push(title + ' ' + season + '. Sezon ' + episode + '. Bölüm');
         }
         queries.push(title + ' ' + episode + '. Bölüm');
+        if (cumulative !== null) queries.push(title + ' ' + cumulative + '. Bölüm');
 
         var key = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
         for (var qIdx = 0; qIdx < queries.length; qIdx++) {
@@ -189,7 +211,7 @@ async function resolveOfficialYouTubeFallback(titles, season, episode) {
                         var duration = parseInt((data.videoDetails && data.videoDetails.lengthSeconds) || '0', 10);
                         var vTitle = (data.videoDetails && data.videoDetails.title) || '';
 
-                        if (duration >= 900 && matchesYouTubeEpisode(vTitle, titles, season, episode)) {
+                        if (duration >= 900 && matchesYouTubeEpisode(vTitle, titles, season, episode, cumulative)) {
                             var streams = [];
                             if (data.streamingData && data.streamingData.hlsManifestUrl) {
                                 streams.push({
@@ -496,10 +518,14 @@ async function getStreams(args) {
         }
 
         var keywords = seriesSearchTitles(info);
+        var cumulative = cumulativeEpisodeNumber(info.seasons, season, episode);
         if (await siteReachable()) {
             var matches = await wpSearch(keywords[0]);
             var hit = bestWPMatch(matches, keywords);
             if (hit) {
+                var wpCumulative = keywords.some(function (title) {
+                    return cleanTitle(title) === cleanTitle(hit.title);
+                }) ? cumulative : null;
                 var list = await fetchText(hit.url);
                 if (list) {
                     var seasonRe = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
@@ -521,11 +547,10 @@ async function getStreams(args) {
                         while ((em = epRe.exec(seasonHtml)) !== null) {
                             var lbl2 = asciiFold(decodeHtmlEntities(em[2].replace(/<[^>]+>/g, ' '))).trim();
                             var epSeason = lbl2.match(seasonLabel);
-                            if (Number(epSeason ? (epSeason[1] || epSeason[2]) : listSeason) !== season) continue;
                             if (epSeason) lbl2 = lbl2.replace(epSeason[0], ' ').trim();
                             var epMatch = lbl2.match(episodeLabel);
                             if (!epMatch && /bolum|episode/i.test(em[1])) epMatch = lbl2.match(/^(\d+)\.?$/);
-                            if (!epMatch || Number(epMatch[1] || epMatch[2]) !== episode) continue;
+                            if (!matchesEpisodeNumber(epMatch, epSeason, listSeason, season, episode, wpCumulative)) continue;
                             var wpStreams = await episodeStreams(em[1]);
                             if (wpStreams && wpStreams.length > 0) return wpStreams;
                             break;
@@ -536,7 +561,7 @@ async function getStreams(args) {
         }
 
         // Fallback: Resmi YouTube direkt akış çözücüsü (Behzat Ç., Kızılcık Şerbeti vb. yerli diziler)
-        var ytStreams = await resolveOfficialYouTubeFallback(keywords, season, episode);
+        var ytStreams = await resolveOfficialYouTubeFallback(keywords, season, episode, cumulative);
         if (ytStreams && ytStreams.length > 0) return ytStreams;
         return [];
     } catch (e) {
