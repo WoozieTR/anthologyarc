@@ -16,7 +16,7 @@ const otherVideoId = 'fixture0002';
 const card = (href, title) => `<a href="${href.slice(1)}"><h2>${title}</h2></a>`;
 const row = (href, number, title) => `<a data-navigo class="truncate" href="${href}">Bölüm <data>${number}</data></a><h6><a itemprop="name">${title}</a></h6>`;
 
-function fixture({ cards, listing, href, candidates, title = 'Yeraltı', seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
+function fixture({ cards, listing, href, candidates, title = 'Yeraltı', aliases, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
     const module = { exports: {} };
     const requests = [];
     const diagnostics = [];
@@ -30,7 +30,7 @@ function fixture({ cards, listing, href, candidates, title = 'Yeraltı', seasons
             if (id === '../shared/turkish_series.js') {
                 return {
                     ...requireFromProvider(id),
-                    resolveSeriesInfo: async () => ({ title, seasons })
+                    resolveSeriesInfo: async () => ({ title, aliases, seasons })
                 };
             }
             return requireFromProvider(id);
@@ -40,7 +40,10 @@ function fixture({ cards, listing, href, candidates, title = 'Yeraltı', seasons
             requests.push(url.pathname);
             if (url.origin === base) {
                 if (url.pathname === '/search') {
-                    return { ok: true, json: async () => ({ data: cards || (listing && card(show, 'Yeraltı')) }) };
+                    const data = typeof cards === 'function'
+                        ? cards(url.searchParams.get('qr'))
+                        : cards || (listing && card(show, 'Yeraltı'));
+                    return { ok: true, json: async () => ({ data }) };
                 }
                 if (url.pathname === player) return { ok: true, text: async () => `file: "${video}"` };
                 if (url.pathname === href) {
@@ -112,6 +115,64 @@ test('TvDiziler normalizes HTML entities before exact series matching', async ()
             '[TvDiziler] series_match {"accepted":0,"rejected":1,"title_mismatch":1,"missing_slug":0}'
         ));
     }
+});
+
+test('TvDiziler strips a standalone watch suffix around the year in candidate metadata', async () => {
+    const href = '/yeralti-23-bolum';
+    const listing = row(href, 23, '23. Bölüm');
+
+    for (const title of ['Yeraltı izle', 'Yeraltı (2026) izle', 'Yeraltı&nbsp;İZLE&nbsp;(2026)']) {
+        const f = fixture({ cards: card(show, title), listing, href });
+        assert.equal((await f.getStreams())[0]?.url, video, title);
+        assert.ok(f.requests.includes(show));
+    }
+});
+
+test('TvDiziler rejects unrelated titles and keeps non-suffix uses of izle distinct', async () => {
+    const href = '/yeralti-23-bolum';
+    const listing = row(href, 23, '23. Bölüm');
+
+    for (const title of ['Yeraltı Dünyası izle', 'Yeraltıizle', 'Yeraltı izle Dünyası', 'Yeraltı izle izle']) {
+        const f = fixture({ cards: card(show, title), listing, href });
+        assert.equal((await f.getStreams()).length, 0, title);
+        assert.ok(!f.requests.includes(show));
+        assert.equal(titleComparisons(f).length, 1);
+    }
+});
+
+test('TvDiziler prefers exact titles and preserves genuine titles ending in izle', async () => {
+    const collision = '/dizi/yeralti-izle';
+    const href = '/yeralti-23-bolum';
+    const listing = row(href, 23, '23. Bölüm');
+    const cards = card(collision, 'Yeraltı izle (2025)') + card(show, 'Yeraltı (2026)');
+    const f = fixture({ cards, listing, href });
+    assert.equal((await f.getStreams())[0]?.url, video);
+    assert.ok(f.requests.includes(show));
+    assert.ok(!f.requests.includes(collision));
+
+    const genuineHref = '/yeralti-izle-23-bolum';
+    const genuine = fixture({
+        cards, listing: row(genuineHref, 23, '23. Bölüm'), href: genuineHref, title: 'Yeraltı İzle'
+    });
+    assert.equal((await genuine.getStreams())[0]?.url, video);
+    assert.ok(genuine.requests.includes(collision));
+    assert.ok(!genuine.requests.includes(show));
+});
+
+test('TvDiziler does not reuse a suffix match when the next title search has no matches', async () => {
+    const queries = [];
+    const f = fixture({
+        aliases: ['Gizli Sokak'],
+        cards(query) {
+            queries.push(query);
+            return query === 'Yeraltı' ? card(show, 'Yeraltı izle') : '';
+        },
+        listing: row('/yeralti-24-bolum', 24, '24. Bölüm')
+    });
+
+    assert.equal((await f.getStreams()).length, 0);
+    assert.deepEqual(queries, ['Yeraltı', 'Gizli Sokak']);
+    assert.equal(f.requests.filter(request => request === show).length, 1);
 });
 
 const titleComparisons = f => f.diagnostics
