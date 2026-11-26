@@ -137,7 +137,7 @@ function findWPEpisodeUrl(html, listSeason, season, episode, cumulative) {
     return '';
 }
 
-function matchesYouTubeEpisode(videoTitle, titles, season, episode, cumulative) {
+function youtubeRejectionReason(videoTitle, titles, season, episode, cumulative) {
     var label = asciiFold(videoTitle);
     var seasonMatch = label.match(seasonLabel);
     if (seasonMatch) label = label.replace(seasonMatch[0], ' ');
@@ -145,10 +145,14 @@ function matchesYouTubeEpisode(videoTitle, titles, season, episode, cumulative) 
     var match = label.match(episodeLabel);
     if (!match && !seasonMatch) {
         var compact = label.match(/\bs(\d+)e(\d+)\s*$/);
-        if (!compact || Number(compact[1]) !== season || Number(compact[2]) !== episode) return false;
+        if (!compact) return 'episode';
+        if (Number(compact[1]) !== season) return 'season';
+        if (Number(compact[2]) !== episode) return 'episode';
         match = compact;
     } else if (!matchesEpisodeNumber(match, seasonMatch, 1, season, episode, cumulative)) {
-        return false;
+        if (seasonMatch && Number(seasonMatch[1] || seasonMatch[2]) !== season) return 'season';
+        if (!seasonMatch && match && Number(match[1] || match[2]) === episode) return 'season';
+        return 'episode';
     }
 
     var before = label.slice(0, match.index).trim().replace(/(?:[|–—]\s*)+$/, '');
@@ -157,10 +161,11 @@ function matchesYouTubeEpisode(videoTitle, titles, season, episode, cumulative) 
     if (match.index === label.search(/[a-z0-9]/)) {
         after = cleanTitle(label.slice(match.index + match[0].length).trim().replace(/^[-–—:|]\s*/, '').split(/\s+[–—-]|\|/)[0]);
     }
-    return titles.some(function (title) {
+    var titleMatches = titles.some(function (title) {
         var target = cleanTitle(title);
         return target && (target === before || target === after);
     });
+    return titleMatches ? '' : 'title';
 }
 
 function selectProgressiveMp4(formats) {
@@ -178,7 +183,7 @@ function selectProgressiveMp4(formats) {
         var labelHeight = label ? Number(label[1]) : 0;
         var height = Number.isSafeInteger(format.height) && format.height > 0 ? format.height : labelHeight;
         if (height > bestHeight) {
-            best = { url: format.url, quality: labelHeight > 0 && labelHeight === height ? label[0] : '' };
+            best = { url: format.url, height: height, quality: labelHeight > 0 && labelHeight === height ? label[0] : '' };
             bestHeight = height;
         }
     }
@@ -239,8 +244,12 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
 
                         if (!(duration >= 900)) {
                             diagnostics.shortCandidates++;
-                        } else if (!matchesYouTubeEpisode(vTitle, titles, season, episode, cumulative)) {
+                            continue;
+                        }
+                        var rejection = youtubeRejectionReason(vTitle, titles, season, episode, cumulative);
+                        if (rejection) {
                             diagnostics.episodeMismatches++;
+                            diagnostics.youtubeRejections[rejection]++;
                         } else {
                             var streams = [];
                             if (data.streamingData && data.streamingData.hlsManifestUrl) {
@@ -273,6 +282,7 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
                                     };
                                     if (quality) stream.quality = quality;
                                     streams.push(stream);
+                                    diagnostics.youtubeHeight = mp4.height;
                                 }
                             }
                             if (streams.length > 0) return streams;
@@ -287,9 +297,12 @@ async function resolveOfficialYouTubeFallback(titles, season, episode, cumulativ
 }
 
 /* ---- WP arama ---- */
-async function wpSearch(term) {
+async function wpSearch(term, diagnostics) {
     var q = encodeURIComponent(term);
-    var html = await fetchText(BASE_URL + '/?s=' + q);
+    var response = await fadeFetch(BASE_URL + '/?s=' + q);
+    if (!response.ok) return [];
+    var html = await response.text();
+    if (diagnostics) diagnostics.wordpress = 'zero-candidates';
     if (!html) return [];
     var results = [];
     var re = /<article[\s\S]*?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
@@ -508,14 +521,26 @@ async function getMeta(id) {
     }
 }
 
+function successfulStreams(streams, origin, started, height) {
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+        console.log('[trdiziizle] success origin=' + origin + ' elapsedMs=' + (Date.now() - started) +
+            ' verifiedResolution=' + (height > 0 ? height + 'p' : 'unknown') + ' resultCount=' + streams.length);
+    }
+    return streams;
+}
+
 function emptyStreams(stage, started, diagnostics) {
     if (typeof console !== 'undefined' && typeof console.log === 'function') {
         console.log('[trdiziizle] empty stage=' + stage + ' elapsedMs=' + (Date.now() - started) +
-            ' cumulative=' + diagnostics.cumulative + ' wordpress=' + diagnostics.wordpress +
+            ' cumulative=' + (diagnostics.cumulativeEpisode !== null) + ' cumulativeEpisode=' + diagnostics.cumulativeEpisode +
+            ' wordpress=' + diagnostics.wordpress +
             ' seasonPageErrors=' + diagnostics.seasonPageErrors +
             ' searchErrors=' + diagnostics.searchErrors + ' playerErrors=' + diagnostics.playerErrors +
             ' shortCandidates=' + diagnostics.shortCandidates +
             ' episodeMismatches=' + diagnostics.episodeMismatches +
+            ' youtubeTitleRejections=' + diagnostics.youtubeRejections.title +
+            ' youtubeSeasonRejections=' + diagnostics.youtubeRejections.season +
+            ' youtubeEpisodeRejections=' + diagnostics.youtubeRejections.episode +
             ' noPlayableFormats=' + diagnostics.noPlayableFormats);
     }
     return [];
@@ -525,8 +550,9 @@ async function getStreams(args) {
     var started = Date.now();
     var stage = 'arguments';
     var diagnostics = {
-        cumulative: false, wordpress: 'skipped', seasonPageErrors: 0, searchErrors: 0, playerErrors: 0,
-        shortCandidates: 0, episodeMismatches: 0, noPlayableFormats: 0
+        cumulativeEpisode: null, wordpress: 'skipped', seasonPageErrors: 0, searchErrors: 0, playerErrors: 0,
+        shortCandidates: 0, episodeMismatches: 0, youtubeRejections: { title: 0, season: 0, episode: 0 },
+        noPlayableFormats: 0, youtubeHeight: 0
     };
     try {
         var tmdbId, mediaType = 'tv', seasonNum, episodeNum;
@@ -551,7 +577,7 @@ async function getStreams(args) {
             stage = 'direct-episode';
             var link = raw.indexOf('trdiziizle:link:') === 0 ? raw.slice('trdiziizle:link:'.length) : decodeURIComponent(raw.slice('trdiziizle:'.length));
             var direct = await episodeStreams(link);
-            return direct.length ? direct : emptyStreams(stage, started, diagnostics);
+            return direct.length ? successfulStreams(direct, 'wordpress', started) : emptyStreams(stage, started, diagnostics);
         }
 
         var season = seasonNum == null ? 1 : Number(seasonNum);
@@ -574,12 +600,13 @@ async function getStreams(args) {
 
         var keywords = seriesSearchTitles(info);
         var cumulative = cumulativeEpisodeNumber(info.seasons, season, episode);
-        diagnostics.cumulative = cumulative !== null;
+        diagnostics.cumulativeEpisode = cumulative;
         stage = 'wordpress';
         diagnostics.wordpress = 'unavailable';
         if (await siteReachable()) {
-            diagnostics.wordpress = 'no-series';
-            var matches = await wpSearch(keywords[0]);
+            diagnostics.wordpress = 'search-error';
+            var matches = await wpSearch(keywords[0], diagnostics);
+            if (matches.length) diagnostics.wordpress = 'title-rejected';
             var hit = bestWPMatch(matches, keywords);
             if (hit) {
                 diagnostics.wordpress = 'no-series-page';
@@ -610,14 +637,14 @@ async function getStreams(args) {
                         if (seasonEpisodeUrl) {
                             diagnostics.wordpress = 'no-streams';
                             var seasonStreams = await episodeStreams(seasonEpisodeUrl);
-                            if (seasonStreams.length > 0) return seasonStreams;
+                            if (seasonStreams.length > 0) return successfulStreams(seasonStreams, 'wordpress', started);
                         }
                         var seriesEpisodeUrl = (!hasSeasonPage || exactSeries) &&
                             findWPEpisodeUrl(list, 1, season, episode, wpCumulative);
                         if (seriesEpisodeUrl && seriesEpisodeUrl !== seasonEpisodeUrl) {
                             diagnostics.wordpress = 'no-streams';
                             var seriesStreams = await episodeStreams(seriesEpisodeUrl);
-                            if (seriesStreams.length > 0) return seriesStreams;
+                            if (seriesStreams.length > 0) return successfulStreams(seriesStreams, 'wordpress', started);
                         }
                     }
                 }
@@ -627,7 +654,7 @@ async function getStreams(args) {
         // Fallback: Resmi YouTube direkt akış çözücüsü (Behzat Ç., Kızılcık Şerbeti vb. yerli diziler)
         stage = 'youtube';
         var ytStreams = await resolveOfficialYouTubeFallback(keywords, season, episode, cumulative, diagnostics);
-        if (ytStreams && ytStreams.length > 0) return ytStreams;
+        if (ytStreams && ytStreams.length > 0) return successfulStreams(ytStreams, 'youtube-fallback', started, diagnostics.youtubeHeight);
         return emptyStreams(stage, started, diagnostics);
     } catch (e) {
         return emptyStreams(stage + '-exception', started, diagnostics);
