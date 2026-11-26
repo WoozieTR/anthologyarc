@@ -103,6 +103,28 @@ var require_quality = __commonJS({
   }
 });
 
+// src/shared/resolution.js
+var require_resolution = __commonJS({
+  "src/shared/resolution.js"(exports2, module2) {
+    function getResolutionFromPath2(url) {
+      const match = /^https?:\/\/[^/?#]+(\/[^?#]*)/i.exec(url);
+      if (!match) return "";
+      const indicators = /(?:^|[\/_.-])([1-9]\d{2,4}x)?(2160|1440|1080|720|540|480|360|240)(p)?(?=$|[\/_.-])/gi;
+      let label = "";
+      let indicator;
+      while ((indicator = indicators.exec(match[1])) !== null) {
+        const [, width, height, suffix] = indicator;
+        if (!width && !suffix) continue;
+        const candidate = height + "p";
+        if (label && label !== candidate) return "";
+        label = candidate;
+      }
+      return label;
+    }
+    module2.exports = { getResolutionFromPath: getResolutionFromPath2 };
+  }
+});
+
 // src/shared/config.js
 var require_config = __commonJS({
   "src/shared/config.js"(exports2, module2) {
@@ -528,6 +550,7 @@ var require_turkish_series = __commonJS({
 
 // src/ddizi/index.js
 var { sortStreamsByQuality } = require_quality();
+var { getResolutionFromPath } = require_resolution();
 var { loadConfig, val, wrapAll } = require_config();
 var { timeoutSignal } = require_http();
 var { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo, asciiFold } = require_turkish_series();
@@ -576,7 +599,7 @@ function resolveYouTubeMp4(ytId) {
           if (data.streamingData.hlsManifestUrl) {
             return {
               url: data.streamingData.hlsManifestUrl,
-              quality: "1080p",
+              quality: "",
               isHls: true,
               format: "hls",
               headers: {
@@ -589,7 +612,7 @@ function resolveYouTubeMp4(ytId) {
             if (formats.length > 0) {
               return {
                 url: formats[0].url,
-                quality: formats[0].qualityLabel || "360p",
+                quality: formats[0].qualityLabel || "",
                 isHls: false,
                 format: "mp4",
                 headers: {
@@ -683,7 +706,7 @@ function resolveOfficialYouTubeFallback(searchTitles, season, episode, cumEpisod
                     name: "DDizi",
                     title: `\u231C DDizi \u231F | Resmi YouTube HLS (${vTitle.slice(0, 50)})`,
                     url: data.streamingData.hlsManifestUrl,
-                    quality: "1080p",
+                    quality: "",
                     provider: "ddizi",
                     format: "hls",
                     isHls: true,
@@ -697,9 +720,9 @@ function resolveOfficialYouTubeFallback(searchTitles, season, episode, cumEpisod
                   if (formats.length > 0) {
                     streams.push({
                       name: "DDizi",
-                      title: `\u231C DDizi \u231F | Resmi YouTube MP4 (${formats[0].qualityLabel || "720p"})`,
+                      title: `\u231C DDizi \u231F | Resmi YouTube MP4${formats[0].qualityLabel ? " (" + formats[0].qualityLabel + ")" : ""}`,
                       url: formats[0].url,
-                      quality: formats[0].qualityLabel || "720p",
+                      quality: formats[0].qualityLabel || "",
                       provider: "ddizi",
                       format: "mp4",
                       isHls: false,
@@ -971,10 +994,7 @@ function extractStreamsFromEpisodePage(epUrl) {
             if (!vUrl || seenStreamUrls.has(vUrl)) continue;
             seenStreamUrls.add(vUrl);
             if (vUrl.includes("preview/") || vUrl.includes("image/") || vUrl.includes(".svg") || vUrl.includes(".jpg") || vUrl.includes(".png")) continue;
-            let quality = "1080p";
-            if (vUrl.includes("720") || vUrl.includes("itag=22")) quality = "720p";
-            else if (vUrl.includes("480")) quality = "480p";
-            else if (vUrl.includes("360") || vUrl.includes("itag=18")) quality = "360p";
+            const quality = getResolutionFromPath(vUrl);
             let server = "CDN";
             let streamHeaders = { "User-Agent": HEADERS["User-Agent"] };
             if (vUrl.includes("googlevideo")) {
@@ -1005,7 +1025,7 @@ function extractStreamsFromEpisodePage(epUrl) {
             origins.add("episode-direct");
             streams.push({
               name: "DDizi",
-              title: `\u231C DDizi \u231F | ${server} (${quality}${isMp4 ? " MP4" : " HLS"})`,
+              title: `\u231C DDizi \u231F | ${server} (${quality ? quality + " " : ""}${isMp4 ? "MP4" : "HLS"})`,
               url: vUrl,
               quality,
               provider: "ddizi",
@@ -1037,9 +1057,9 @@ function extractStreamsFromEpisodePage(epUrl) {
                   origins.add("episode-dailymotion");
                   streams.push({
                     name: "DDizi",
-                    title: "\u231C DDizi \u231F | Dailymotion (1080p HLS)",
+                    title: "\u231C DDizi \u231F | Dailymotion (HLS)",
                     url: autoQual.url,
-                    quality: "1080p",
+                    quality: "",
                     provider: "ddizi",
                     headers: dmHeaders,
                     format: "hls",
@@ -1067,7 +1087,7 @@ function extractStreamsFromEpisodePage(epUrl) {
               foundDirectMp4 = true;
               const isHls2 = !!ytStream.isHls;
               const fmt = ytStream.format || (isHls2 ? "hls" : "mp4");
-              const qualLabel = isHls2 ? `HLS (${ytStream.quality})` : `MP4 (${ytStream.quality})`;
+              const qualLabel = (isHls2 ? "HLS" : "MP4") + (ytStream.quality ? " (" + ytStream.quality + ")" : "");
               origins.add("episode-youtube-innertube");
               streams.push({
                 name: "DDizi",
@@ -1104,13 +1124,14 @@ function extractStreamsFromEpisodePage(epUrl) {
                   if (formats.length > 0) {
                     formats.sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
                     for (const fmt of formats.slice(0, 1)) {
+                      const quality = fmt.qualityLabel || fmt.quality || "";
                       const ytHeaders = { "User-Agent": HEADERS["User-Agent"] };
                       origins.add("episode-youtube-invidious");
                       streams.push({
                         name: "DDizi",
-                        title: `\u231C DDizi \u231F | YouTube MP4 (${fmt.qualityLabel || fmt.quality || "HD"})`,
+                        title: `\u231C DDizi \u231F | YouTube MP4${quality ? " (" + quality + ")" : ""}`,
                         url: fmt.url,
-                        quality: fmt.qualityLabel || "720p",
+                        quality,
                         provider: "ddizi",
                         headers: ytHeaders,
                         format: "mp4",

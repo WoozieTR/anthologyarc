@@ -11,10 +11,10 @@ const base = 'https://ddizi.fixture.invalid';
 const show = '/diziler/123/yeralti';
 const videoId = 'fixture0001';
 const otherVideoId = 'fixture0002';
-const video = 'https://media.fixture.invalid/360.mp4?token=fixture';
+const video = 'https://media.fixture.invalid/360p.mp4?token=fixture';
 const anchor = (href, title) => `<a href="${href}">${title}</a>`;
 
-function fixture(routes, player, seasons = [{ season_number: 1, episode_count: 16 }]) {
+function fixture(routes, player, seasons = [{ season_number: 1, episode_count: 16 }], streamingData = { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }) {
     const candidates = typeof player === 'string' ? { [videoId]: player } : player;
     const module = { exports: {} };
     const requests = [];
@@ -56,7 +56,7 @@ function fixture(routes, player, seasons = [{ season_number: 1, episode_count: 1
                     const title = candidates[JSON.parse(options.body).videoId];
                     return { ok: true, json: async () => ({
                         videoDetails: { lengthSeconds: '3600', title },
-                        streamingData: { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }
+                        streamingData
                     }) };
                 }
             }
@@ -241,5 +241,54 @@ test('DDizi compares visible episode numbers with the episode link', async () =>
         }, episode));
         assert.equal((await f.getStreams())[0]?.url, accepted ? video : undefined, label);
         assert.equal(f.requests.includes(episode), accepted);
+    }
+});
+
+
+test('DDizi labels direct streams only when the path provides a resolution', async () => {
+    const episode = '/izle/123/yeralti-23-bolum';
+    for (const [path, quality] of [
+        ['/episode.mp4', ''],
+        ['/episode.mp4?token=720-480-360&itag=22', ''],
+        ['/episode1720480.mp4', ''],
+        ['/720/episode.mp4', ''],
+        ['/episode-1080.mp4', ''],
+        ['/720p/episode-1080.mp4', '720p'],
+        ['/720p/episode-1280x720.mp4', '720p'],
+        ['/720p-1080p/episode.mp4', ''],
+        ['/1280x720/episode.mp4?token=480', '720p']
+    ]) {
+        const url = 'https://media.fixture.invalid' + path;
+        const routes = episodePage({
+            '/arama/': anchor(show, 'Yeraltı'),
+            [show]: anchor(episode, '23. Bölüm')
+        }, episode);
+        routes['/player/oynat/fixture'] = `file: "${url}"`;
+        const f = fixture(routes);
+        const [stream] = await f.getStreams();
+        assert.equal(stream?.url, url);
+        assert.equal(stream.quality, quality, path);
+        assert.equal(stream.title.includes('720p'), quality === '720p', path);
+        assert.doesNotMatch(stream.title, /(?:1080|480|360)p/);
+    }
+});
+
+test('DDizi uses explicit YouTube format labels and leaves unlabeled results without a resolution', async () => {
+    const hlsManifestUrl = 'https://media.fixture.invalid/master.m3u8';
+    for (const qualityLabel of [undefined, '480p']) {
+        const streamingData = {
+            hlsManifestUrl,
+            formats: [{ url: video, mimeType: 'video/mp4', qualityLabel }]
+        };
+        const f = fixture({}, 'Yeraltı 23. Bölüm', undefined, streamingData);
+        const streams = await f.getStreams();
+        const hls = streams.find(stream => stream.url === hlsManifestUrl);
+        const mp4 = streams.find(stream => stream.url === video);
+        assert.equal(hls?.quality, '');
+        assert.equal(mp4?.quality, qualityLabel || '');
+        assert.equal(mp4.title.includes('480p'), !!qualityLabel);
+        assert.doesNotMatch(mp4.title, /(?:1080|720|360)p/);
+        assert.ok(streams.some(stream => stream.ytId === videoId));
+        assert.equal(f.requests.filter(request => request === '/youtubei/v1/player').length, 1);
     }
 });

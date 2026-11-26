@@ -119,8 +119,8 @@ function assertStreams(streams, name, host) {
     assert.ok(headers['User-Agent']);
     assert.deepEqual(stream, {
         name: isDDizi ? 'DDizi' : 'TvDiziler',
-        title: isDDizi ? '⌜ DDizi ⌟ | CDN (1080p MP4)' : '⌜ TvDiziler ⌟ | Tek Parça (MP4 1080p)',
-        url: video, quality: '1080p', provider: name, headers, format: 'mp4', isHls: false,
+        title: isDDizi ? '⌜ DDizi ⌟ | CDN (MP4)' : '⌜ TvDiziler ⌟ | Tek Parça (MP4)',
+        url: video, quality: '', provider: name, headers, format: 'mp4', isHls: false,
         behaviorHints: { notWebReady: true, proxyHeaders: { request: headers } }
     });
 }

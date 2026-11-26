@@ -1,4 +1,5 @@
 const { sortStreamsByQuality } = require('../shared/quality.js');
+const { getResolutionFromPath } = require('../shared/resolution.js');
 const { loadConfig, val, wrapAll } = require('../shared/config.js');
 const { timeoutSignal } = require('../shared/http.js');
 const { asciiFold, normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require('../shared/turkish_series.js');
@@ -18,7 +19,7 @@ function cfgReady() {
 /**
  * Anthology - TvDiziler Provider
  * https://tvdiziler.tv/
- * Yerli TV dizileri arşivi üzerinden 1080p HLS (Twitter Amplify), doğrudan MP4 (Ciner/CDN) ve YouTube akışları.
+ * Yerli TV dizileri arşivi üzerinden HLS (Twitter Amplify), doğrudan MP4 (Ciner/CDN) ve YouTube akışları.
  */
 
 var BASE_URL = 'https://tvdiziler.tv';
@@ -111,7 +112,7 @@ async function resolveYouTubeMp4(ytId) {
                 if (data.streamingData.hlsManifestUrl) {
                     return {
                         url: data.streamingData.hlsManifestUrl,
-                        quality: '1080p',
+                        quality: '',
                         isHls: true,
                         format: 'hls',
                         headers: {
@@ -126,7 +127,7 @@ async function resolveYouTubeMp4(ytId) {
                     if (formats.length > 0) {
                         return {
                             url: formats[0].url,
-                            quality: formats[0].qualityLabel || '360p',
+                            quality: formats[0].qualityLabel || '',
                             isHls: false,
                             format: 'mp4',
                             headers: {
@@ -319,7 +320,7 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                                     name: 'TvDiziler',
                                     title: '⌜ TvDiziler ⌟ | Resmi YouTube HLS (' + vTitle.slice(0, 50) + ')',
                                     url: data.streamingData.hlsManifestUrl,
-                                    quality: '1080p',
+                                    quality: '',
                                     provider: 'tvdiziler',
                                     format: 'hls',
                                     isHls: true,
@@ -333,9 +334,9 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                                 if (formats.length > 0) {
                                     streams.push({
                                         name: 'TvDiziler',
-                                        title: '⌜ TvDiziler ⌟ | Resmi YouTube MP4 (' + (formats[0].qualityLabel || '720p') + ')',
+                                        title: '⌜ TvDiziler ⌟ | Resmi YouTube MP4' + (formats[0].qualityLabel ? ' (' + formats[0].qualityLabel + ')' : ''),
                                         url: formats[0].url,
-                                        quality: formats[0].qualityLabel || '720p',
+                                        quality: formats[0].qualityLabel || '',
                                         provider: 'tvdiziler',
                                         format: 'mp4',
                                         isHls: false,
@@ -682,10 +683,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                                 if (!seenUrls.has(streamUrl)) {
                                     seenUrls.add(streamUrl);
                                     var isHls = streamUrl.includes('.m3u8');
-                                    var quality = '1080p';
-                                    if (streamUrl.includes('720') || streamUrl.includes('1280x720')) quality = '720p';
-                                    else if (streamUrl.includes('480')) quality = '480p';
-                                    else if (streamUrl.includes('360')) quality = '360p';
+                                    var quality = getResolutionFromPath(streamUrl);
 
                                     var streamHeaders = {
                                         'User-Agent': HEADERS['User-Agent']
@@ -701,7 +699,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
 
                                     streams.push({
                                         name: 'TvDiziler',
-                                        title: '⌜ TvDiziler ⌟ | ' + label + ' (' + (isHls ? 'HLS' : 'MP4') + ' ' + quality + ')',
+                                        title: '⌜ TvDiziler ⌟ | ' + label + ' (' + (isHls ? 'HLS' : 'MP4') + (quality ? ' ' + quality : '') + ')',
                                         url: streamUrl,
                                         quality: quality,
                                         format: isHls ? 'hls' : 'mp4',
@@ -732,7 +730,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                         if (ytStream && ytStream.url) {
                             var isHls = !!ytStream.isHls;
                             var fmt = ytStream.format || (isHls ? 'hls' : 'mp4');
-                            var qualLabel = isHls ? ('HLS ' + ytStream.quality) : ('MP4 ' + ytStream.quality);
+                            var qualLabel = (isHls ? 'HLS' : 'MP4') + (ytStream.quality ? ' ' + ytStream.quality : '');
                             streams.push({
                                 name: 'TvDiziler',
                                 title: '⌜ TvDiziler ⌟ | ' + (label || 'YouTube') + ' (' + qualLabel + ')',
@@ -778,7 +776,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                 if (ifrYtStream && ifrYtStream.url) {
                     var ifrIsHls = !!ifrYtStream.isHls;
                     var ifrFmt = ifrYtStream.format || (ifrIsHls ? 'hls' : 'mp4');
-                    var ifrQualLabel = ifrIsHls ? ('HLS ' + ifrYtStream.quality) : ('MP4 ' + ifrYtStream.quality);
+                    var ifrQualLabel = (ifrIsHls ? 'HLS' : 'MP4') + (ifrYtStream.quality ? ' ' + ifrYtStream.quality : '');
                     streams.push({
                         name: 'TvDiziler',
                         title: '⌜ TvDiziler ⌟ | YouTube (' + ifrQualLabel + ')',

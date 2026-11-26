@@ -10,13 +10,13 @@ const requireFromProvider = createRequire(filename);
 const base = 'https://tvdiziler.fixture.invalid';
 const show = '/dizi/yeralti-son-bolum-izle';
 const player = '/vid/ply/fixture';
-const video = 'https://media.fixture.invalid/360.mp4?token=fixture';
+const video = 'https://media.fixture.invalid/360p.mp4?token=fixture';
 const videoId = 'fixture0001';
 const otherVideoId = 'fixture0002';
 const card = (href, title) => `<a href="${href.slice(1)}"><h2>${title}</h2></a>`;
 const row = (href, number, title) => `<a data-navigo class="truncate" href="${href}">Bölüm <data>${number}</data></a><h6><a itemprop="name">${title}</a></h6>`;
 
-function fixture({ cards, listing, href, candidates, title = 'Yeraltı', aliases, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
+function fixture({ cards, listing, href, candidates, playerUrl = video, streamingData = { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }, title = 'Yeraltı', aliases, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
     const module = { exports: {} };
     const requests = [];
     const diagnostics = [];
@@ -45,7 +45,7 @@ function fixture({ cards, listing, href, candidates, title = 'Yeraltı', aliases
                         : cards || (listing && card(show, 'Yeraltı'));
                     return { ok: true, json: async () => ({ data }) };
                 }
-                if (url.pathname === player) return { ok: true, text: async () => `file: "${video}"` };
+                if (url.pathname === player) return { ok: true, text: async () => `file: "${playerUrl}"` };
                 if (url.pathname === href) {
                     return { ok: true, text: async () => `<button data-hhs="${player}">Tek Parça</button>` };
                 }
@@ -59,7 +59,7 @@ function fixture({ cards, listing, href, candidates, title = 'Yeraltı', aliases
                     const title = candidates[JSON.parse(options.body).videoId];
                     return { ok: true, json: async () => ({
                         videoDetails: { lengthSeconds: '3600', title },
-                        streamingData: { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }
+                        streamingData
                     }) };
                 }
             }
@@ -303,4 +303,48 @@ test('TvDiziler reports direct episode results without identifying the episode',
         '[TvDiziler] result {"origin":"direct_episode","count":1}',
         '[TvDiziler] empty_result {"reason":"direct_episode_empty"}'
     ]);
+});
+
+
+test('TvDiziler labels direct streams only when the path provides a resolution', async () => {
+    const episode = '/yeralti-23-bolum';
+    for (const [path, quality] of [
+        ['/episode.mp4', ''],
+        ['/episode.mp4?token=720-480-360&itag=22', ''],
+        ['/episode1720480.mp4', ''],
+        ['/720/episode.mp4', ''],
+        ['/episode-1080.mp4', ''],
+        ['/720p/episode-1080.mp4', '720p'],
+        ['/720p/episode-1280x720.mp4', '720p'],
+        ['/720p-1080p/episode.mp4', ''],
+        ['/1280x720/episode.mp4?token=480', '720p']
+    ]) {
+        const url = 'https://media.fixture.invalid' + path;
+        const f = fixture({ listing: row(episode, 23, '23. Bölüm'), href: episode, playerUrl: url });
+        const [stream] = await f.getStreams();
+        assert.equal(stream?.url, url);
+        assert.equal(stream.quality, quality, path);
+        assert.equal(stream.title.includes('720p'), quality === '720p', path);
+        assert.doesNotMatch(stream.title, /(?:1080|480|360)p/);
+    }
+});
+
+test('TvDiziler uses explicit YouTube format labels and leaves unlabeled results without a resolution', async () => {
+    const hlsManifestUrl = 'https://media.fixture.invalid/master.m3u8';
+    for (const qualityLabel of [undefined, '480p']) {
+        const streamingData = {
+            hlsManifestUrl,
+            formats: [{ url: video, mimeType: 'video/mp4', qualityLabel }]
+        };
+        const f = fixture({ candidates: { [videoId]: 'Yeraltı 23. Bölüm' }, streamingData });
+        const streams = await f.getStreams();
+        const hls = streams.find(stream => stream.url === hlsManifestUrl);
+        const mp4 = streams.find(stream => stream.url === video);
+        assert.equal(hls?.quality, '');
+        assert.equal(mp4?.quality, qualityLabel || '');
+        assert.equal(mp4.title.includes('480p'), !!qualityLabel);
+        assert.doesNotMatch(mp4.title, /(?:1080|720|360)p/);
+        assert.ok(streams.some(stream => stream.ytId === videoId));
+        assert.equal(f.requests.filter(request => request === '/youtubei/v1/player').length, 1);
+    }
 });
