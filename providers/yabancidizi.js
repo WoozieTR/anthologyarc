@@ -219,9 +219,9 @@ var require_config = __commonJS({
   }
 });
 
-// src/shared/http_request.js
-var require_http_request = __commonJS({
-  "src/shared/http_request.js"(exports2, module2) {
+// src/shared/http_deadline.js
+var require_http_deadline = __commonJS({
+  "src/shared/http_deadline.js"(exports2, module2) {
     function withDeadline(deadline, signal, cancel, operation) {
       var timer;
       var onAbort;
@@ -282,6 +282,16 @@ var require_http_request = __commonJS({
     function canListen(signal) {
       return signal && typeof signal.addEventListener === "function" && typeof signal.removeEventListener === "function";
     }
+    module2.exports = { withDeadline, canListen };
+  }
+});
+
+// src/shared/http_request.js
+var require_http_request = __commonJS({
+  "src/shared/http_request.js"(exports2, module2) {
+    var deadlineHelpers = require_http_deadline();
+    var withDeadline = deadlineHelpers.withDeadline;
+    var canListen = deadlineHelpers.canListen;
     function nodeRequest(mod, url, options, deadline) {
       var req;
       function destroy() {

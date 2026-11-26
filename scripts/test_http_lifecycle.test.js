@@ -14,11 +14,11 @@ function loadFetch(provider, globals = {}) {
         ...globals,
         module: { exports: {} },
         require(id) {
-            if (id === '../shared/http_request.js') {
-                const helper = requireFromProvider.resolve(id);
+            if (id === '../shared/http_request.js' || id === './http_deadline.js') {
+                const helper = path.resolve(__dirname, '../src/shared', path.basename(id));
                 const module = { exports: {} };
                 runInNewContext(readFileSync(helper, 'utf8'), {
-                    ...context, module, require: createRequire(helper)
+                    ...context, module
                 }, { filename: helper });
                 return module.exports;
             }

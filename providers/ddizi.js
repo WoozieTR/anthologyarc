@@ -260,9 +260,77 @@ var require_config = __commonJS({
   }
 });
 
+// src/shared/http_deadline.js
+var require_http_deadline = __commonJS({
+  "src/shared/http_deadline.js"(exports2, module2) {
+    function withDeadline(deadline, signal, cancel, operation) {
+      var timer;
+      var onAbort;
+      var cancelled = false;
+      var timeoutError = new Error("Request timeout");
+      function cancelRequest(error) {
+        if (cancelled) return;
+        cancelled = true;
+        try {
+          cancel(error);
+        } catch (e) {
+        }
+      }
+      function stop(reject, error) {
+        reject(error);
+        cancelRequest(error);
+      }
+      function abortReason() {
+        if (signal.reason !== void 0) return signal.reason;
+        var error = new Error("The operation was aborted");
+        error.name = "AbortError";
+        return error;
+      }
+      function checkDeadline() {
+        if (Date.now() >= deadline) {
+          cancelRequest(timeoutError);
+          throw timeoutError;
+        }
+      }
+      var limit = new Promise(function(_, reject) {
+        if (signal && signal.aborted) {
+          stop(reject, abortReason());
+          return;
+        }
+        timer = setTimeout(function() {
+          stop(reject, timeoutError);
+        }, Math.max(0, deadline - Date.now()));
+        if (canListen(signal)) {
+          onAbort = function() {
+            stop(reject, abortReason());
+          };
+          signal.addEventListener("abort", onAbort);
+        }
+      });
+      var request = Promise.resolve().then(function() {
+        if (signal && signal.aborted) throw abortReason();
+        checkDeadline();
+        return operation();
+      }).then(function(value) {
+        checkDeadline();
+        return value;
+      });
+      return Promise.race([limit, request]).finally(function() {
+        if (timer !== void 0) clearTimeout(timer);
+        if (onAbort) signal.removeEventListener("abort", onAbort);
+      });
+    }
+    function canListen(signal) {
+      return signal && typeof signal.addEventListener === "function" && typeof signal.removeEventListener === "function";
+    }
+    module2.exports = { withDeadline, canListen };
+  }
+});
+
 // src/shared/http.js
 var require_http = __commonJS({
   "src/shared/http.js"(exports2, module2) {
+    var withDeadline = require_http_deadline().withDeadline;
     var DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     function timeoutSignal2(ms) {
       if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
@@ -274,19 +342,37 @@ var require_http = __commonJS({
       }, ms);
       return controller.signal;
     }
+    function headersWithUserAgent(headers) {
+      if (typeof Headers === "function" && headers instanceof Headers) {
+        var copy = new Headers(headers);
+        if (!copy.get("User-Agent")) copy.set("User-Agent", DEFAULT_UA);
+        return copy;
+      }
+      if (Array.isArray(headers)) {
+        var entries = headers.slice();
+        if (!entries.some(function(entry) {
+          return entry[0].toLowerCase() === "user-agent" && entry[1];
+        })) entries.push(["User-Agent", DEFAULT_UA]);
+        return entries;
+      }
+      var fields = Object.assign({}, headers);
+      if (!Object.keys(fields).some(function(key) {
+        return key.toLowerCase() === "user-agent" && fields[key];
+      })) fields["User-Agent"] = DEFAULT_UA;
+      return fields;
+    }
     function fetchWithTimeout(url, options, ms) {
-      ms = ms || 1e4;
-      options = options || {};
-      if (!options.signal) {
-        options.signal = timeoutSignal2(ms);
-      }
-      if (!options.headers) {
-        options.headers = {};
-      }
-      if (!options.headers["User-Agent"] && !options.headers["user-agent"]) {
-        options.headers["User-Agent"] = DEFAULT_UA;
-      }
-      return fetch(url, options);
+      var deadline = Date.now() + (ms || 1e4);
+      var fetchOptions = Object.assign({}, options);
+      fetchOptions.headers = headersWithUserAgent(fetchOptions.headers);
+      var signal = fetchOptions.signal;
+      var controller = !signal && typeof AbortController === "function" ? new AbortController() : null;
+      if (controller) fetchOptions.signal = controller.signal;
+      return withDeadline(deadline, signal, function(error) {
+        if (controller) controller.abort(error);
+      }, function() {
+        return fetch(url, fetchOptions);
+      });
     }
     module2.exports = {
       DEFAULT_UA,
