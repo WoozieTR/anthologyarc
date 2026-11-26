@@ -1,6 +1,7 @@
 <div align="center">
   <img src="assets/logo_1_transparent.png" alt="Anthology Logo" width="130" />
-  <h1>Anthology</h1>
+  <h1>Anthology ARC</h1>
+  <p>falsisdev/anthology projesinin bağımsız bakım ve uyumluluk geliştirmeleri içeren forkudur. Orijinal proje: <a href="https://github.com/falsisdev/anthology">falsisdev/anthology</a>.</p>
   <p><strong>Nuvio ve Stremio için Doğrulanmış Türkçe Film, Dizi, Anime, Canlı TV ve Zengin Katalog Deposu</strong></p>
 
   <p>
