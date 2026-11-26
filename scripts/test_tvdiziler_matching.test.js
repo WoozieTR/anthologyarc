@@ -114,6 +114,48 @@ test('TvDiziler normalizes HTML entities before exact series matching', async ()
     }
 });
 
+test('TvDiziler strips a standalone watch suffix around the year in candidate metadata', async () => {
+    const href = '/yeralti-23-bolum';
+    const listing = row(href, 23, '23. Bölüm');
+
+    for (const title of ['Yeraltı izle', 'Yeraltı (2026) izle', 'Yeraltı&nbsp;İZLE&nbsp;(2026)']) {
+        const f = fixture({ cards: card(show, title), listing, href });
+        assert.equal((await f.getStreams())[0]?.url, video, title);
+        assert.ok(f.requests.includes(show));
+    }
+});
+
+test('TvDiziler rejects unrelated titles and keeps non-suffix uses of izle distinct', async () => {
+    const href = '/yeralti-23-bolum';
+    const listing = row(href, 23, '23. Bölüm');
+
+    for (const title of ['Yeraltı Dünyası izle', 'Yeraltıizle', 'Yeraltı izle Dünyası', 'Yeraltı izle izle']) {
+        const f = fixture({ cards: card(show, title), listing, href });
+        assert.equal((await f.getStreams()).length, 0, title);
+        assert.ok(!f.requests.includes(show));
+        assert.equal(titleComparisons(f).length, 1);
+    }
+});
+
+test('TvDiziler prefers exact titles and preserves genuine titles ending in izle', async () => {
+    const collision = '/dizi/yeralti-izle';
+    const href = '/yeralti-23-bolum';
+    const listing = row(href, 23, '23. Bölüm');
+    const cards = card(collision, 'Yeraltı izle (2025)') + card(show, 'Yeraltı (2026)');
+    const f = fixture({ cards, listing, href });
+    assert.equal((await f.getStreams())[0]?.url, video);
+    assert.ok(f.requests.includes(show));
+    assert.ok(!f.requests.includes(collision));
+
+    const genuineHref = '/yeralti-izle-23-bolum';
+    const genuine = fixture({
+        cards, listing: row(genuineHref, 23, '23. Bölüm'), href: genuineHref, title: 'Yeraltı İzle'
+    });
+    assert.equal((await genuine.getStreams())[0]?.url, video);
+    assert.ok(genuine.requests.includes(collision));
+    assert.ok(!genuine.requests.includes(show));
+});
+
 const titleComparisons = f => f.diagnostics
     .filter(line => line.startsWith('[TvDiziler] series_title_mismatch '))
     .map(line => JSON.parse(line.slice(line.indexOf('{'))));

@@ -890,15 +890,27 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
 
             var results = await searchTvDiziler(cleanQuery);
             var titleMismatch = 0;
+            var suffixMatch;
             var matchedShow = results.find(result => {
                 const decoded = decodeSearchTitle(result.title);
-                const decodedKey = seriesKey(cleanSeriesTitle(decoded));
+                const candidateTitle = cleanSeriesTitle(decoded);
+                const decodedKey = seriesKey(candidateTitle);
                 if (decodedKey === cleanTarget) return true;
+
+                const watchSuffix = candidateTitle.match(/\s+[iİ]zle$/i);
+                const candidateKey = watchSuffix
+                    ? seriesKey(cleanSeriesTitle(candidateTitle.slice(0, watchSuffix.index)))
+                    : decodedKey;
+                if (candidateKey === cleanTarget) {
+                    if (!suffixMatch) suffixMatch = result;
+                    return false;
+                }
+
                 titleMismatch++;
                 const expected = nrm.kind === 'title' && cleanQuery === cleanSeriesTitle(nrm.id) ? null : cleanQuery;
-                logRejectedSeriesTitle(expected, cleanTarget, result.title, decoded, decodedKey);
+                logRejectedSeriesTitle(expected, cleanTarget, result.title, decoded, candidateKey);
                 return false;
-            });
+            }) || suffixMatch;
             var missingSlug = matchedShow && !matchedShow.slug ? 1 : 0;
             diagnostic('series_match', {
                 accepted: matchedShow && matchedShow.slug ? 1 : 0,
