@@ -12,13 +12,15 @@ const mp4 = 'https://fixture.invalid/video.mp4';
 const youtubeWatch = 'https://www.youtube.com/watch?v=fixture0001';
 const youtubeEmbed = 'https://youtu.be/fixture0001';
 
-function fetchFixtures(t, routes, youtube = {}) {
+function fetchFixtures(t, routes, youtube = {}, metadata) {
     const queries = [];
     const unexpected = [];
     t.mock.method(globalThis, 'fetch', async (input, opts) => {
         const url = new URL(input);
         let body;
-        if (routes.has(input)) {
+        if (metadata && url.origin === 'https://api.themoviedb.org' && /^\/3\/tv\/123(?:\/(?:external_ids|translations))?$/.test(url.pathname)) {
+            body = url.pathname === '/3/tv/123' ? metadata : {};
+        } else if (routes.has(input)) {
             body = routes.get(input);
         } else if (url.origin === 'https://www.youtube.com' && url.pathname === '/results' && youtube.search) {
             const query = url.searchParams.get('search_query');
@@ -226,4 +228,55 @@ test('WordPress rejects an episode link with a conflicting season label', async 
 test('WordPress accepts an explicitly numbered episode on the series page', async (t) => {
     wp(t, link(episodePage, '2. Sezon 3. Bölüm'));
     assert.deepEqual((await getStreams('Örnek Dizi:2:3', 'tv')).map(stream => stream.url), [hls]);
+});
+
+const seriesMetadata = {
+    name: title,
+    seasons: [
+        { season_number: 2, episode_count: 12 },
+        { season_number: 0, episode_count: 3 },
+        { season_number: 1, episode_count: 16 }
+    ]
+};
+
+test('YouTube finds cumulative episode 24 and preserves strict season, episode and title checks', async (t) => {
+    const queries = fetchFixtures(t, new Map(siteDown), {
+        search: query => {
+            if (query === title + ' 24. Bölüm') return ['fixture0001', 'fixture0002', 'fixture0003', 'fixture0004'];
+            if (query === title + ' 2. Sezon 9. Bölüm') return ['fixture0005'];
+            return [];
+        },
+        videos: {
+            fixture0001: video(title + ' 1. Sezon 24. Bölüm', { hlsManifestUrl: mp4 }),
+            fixture0002: video(title + ' 25. Bölüm', { hlsManifestUrl: mp4 }),
+            fixture0003: video('Başka Dizi 24. Bölüm', { hlsManifestUrl: mp4 }),
+            fixture0004: video(title + ' 24. Bölüm'),
+            fixture0005: video(title + ' 2. Sezon 9. Bölüm')
+        }
+    }, seriesMetadata);
+    assert.deepEqual((await getStreams('123', 'tv', 2, 8)).map(stream => stream.url), [hls]);
+    assert.ok(queries.includes(title + ' 24. Bölüm'));
+    assert.deepEqual((await getStreams('123', 'tv', 2, 9)).map(stream => stream.url), [hls]);
+});
+
+test('WordPress uses cumulative numbering on the series page with complete season metadata', async (t) => {
+    fetchFixtures(t, new Map([
+        [base + '/', 'reachable'],
+        [base + '/?s=' + encodeURIComponent(title), '<article>' + link(seriesPage, title) + '</article>'],
+        [seriesPage, link('https://fixture.invalid/wrong-bolum/', '1. Sezon 24. Bölüm') +
+            link('https://fixture.invalid/wrong-bolum/', '8. Bölüm') +
+            link('https://fixture.invalid/wrong-bolum/', '25. Bölüm') + link(episodePage, '24. Bölüm')],
+        [episodePage, embed(iframe)],
+        [iframe, '"' + hls + '"']
+    ]), { search: () => [] }, seriesMetadata);
+    assert.deepEqual((await getStreams('123', 'tv', 2, 8)).map(stream => stream.url), [hls]);
+});
+
+test('YouTube does not guess a cumulative episode when a previous season count is missing', async (t) => {
+    const queries = fetchFixtures(t, new Map(siteDown), {
+        search: () => ['fixture0001'],
+        videos: { fixture0001: video(title + ' 24. Bölüm') }
+    }, { name: title, seasons: [{ season_number: 2, episode_count: 12 }] });
+    assert.deepEqual(await getStreams('123', 'tv', 2, 8), []);
+    assert.deepEqual(queries, [title + ' 2. Sezon 8. Bölüm', title + ' 8. Bölüm']);
 });
