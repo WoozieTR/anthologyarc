@@ -136,7 +136,9 @@ test('TvDiziler rejects unrelated titles and keeps non-suffix uses of izle disti
         const f = fixture({ cards: card(show, title), listing, href });
         assert.equal((await f.getStreams()).length, 0, title);
         assert.ok(!f.requests.includes(show));
-        assert.equal(titleComparisons(f).length, 1);
+        assert.ok(f.diagnostics.includes(
+            '[TvDiziler] series_match {"accepted":0,"rejected":1,"title_mismatch":1,"missing_slug":0}'
+        ));
     }
 });
 
@@ -173,69 +175,6 @@ test('TvDiziler does not reuse a suffix match when the next title search has no 
     assert.equal((await f.getStreams()).length, 0);
     assert.deepEqual(queries, ['Yeraltı', 'Gizli Sokak']);
     assert.equal(f.requests.filter(request => request === show).length, 1);
-});
-
-const titleComparisons = f => f.diagnostics
-    .filter(line => line.startsWith('[TvDiziler] series_title_mismatch '))
-    .map(line => JSON.parse(line.slice(line.indexOf('{'))));
-
-test('TvDiziler logs bounded title metadata only for rejected comparisons', async () => {
-    const f = fixture({
-        cards: card('/dizi/baska', 'Ba&#351;ka&nbsp;Dizi (2026)') +
-            card('/dizi/uzun', 'Başka '.repeat(30).trim()) + card(show, 'Yeraltı')
-    });
-    await f.getStreams();
-
-    const comparisons = titleComparisons(f);
-    assert.equal(comparisons.length, 2);
-    assert.deepEqual(comparisons[0], {
-        expected_title: 'Yeraltı',
-        candidate_title: 'Ba&#351;ka&nbsp;Dizi (2026)',
-        decoded_candidate_title: 'Başka Dizi (2026)',
-        expected_key: 'yeralti',
-        candidate_key: 'ba351kanbspdizi',
-        decoded_candidate_key: 'baskadizi'
-    });
-    for (const key of ['candidate_title', 'decoded_candidate_title', 'candidate_key', 'decoded_candidate_key']) {
-        assert.equal(comparisons[1][key].length, 96);
-    }
-});
-
-test('TvDiziler suppresses unsafe titles and their comparison keys', async () => {
-    const unsafe = [
-        'Başka '.repeat(20) + 'https&#58;&#47;&#47;fixture.invalid',
-        'fixture.invalid',
-        'Authorization&#58; Bearer FixtureSecret',
-        'api_key=FixtureSecret',
-        'fixture&#64;example.invalid',
-        '0532 123 45 67',
-        '0123456789abcdef0123456789abcdef',
-        'Başka&#10;Dizi'
-    ];
-    const f = fixture({ cards: unsafe.map(title => card('/dizi/private', title)).join('') });
-    await f.getStreams();
-
-    const comparisons = titleComparisons(f);
-    assert.equal(comparisons.length, unsafe.length);
-    for (const comparison of comparisons) {
-        assert.deepEqual(comparison, {
-            expected_title: 'Yeraltı',
-            candidate_title: null,
-            decoded_candidate_title: null,
-            expected_key: 'yeralti',
-            candidate_key: null,
-            decoded_candidate_key: null
-        });
-    }
-
-    for (const [title, id] of [['Private Input', 'Private Input'], ['test@example.invalid', '901']]) {
-        const expected = fixture({ title, cards: card('/dizi/baska', 'Başka Dizi') });
-        await expected.getStreams(2, 7, id);
-        const [comparison] = titleComparisons(expected);
-        assert.equal(comparison.expected_title, null);
-        assert.equal(comparison.expected_key, null);
-        assert.equal(comparison.candidate_title, 'Başka Dizi');
-    }
 });
 
 test('TvDiziler verifies episode identity against every numbering source', async (t) => {
@@ -332,9 +271,7 @@ test('TvDiziler reports fixed series and episode decisions and the successful or
     });
 
     assert.equal((await f.getStreams())[0]?.url, video);
-    assert.equal(titleComparisons(f).length, 1);
     assert.deepEqual(f.diagnostics, [
-        '[TvDiziler] series_title_mismatch {"expected_title":"Yeraltı","candidate_title":"Başka Dizi","decoded_candidate_title":"Başka Dizi","expected_key":"yeralti","candidate_key":"baskadizi","decoded_candidate_key":"baskadizi"}',
         '[TvDiziler] series_match {"accepted":1,"rejected":1,"title_mismatch":1,"missing_slug":0}',
         '[TvDiziler] episode_match {"origin":"episode_list","accepted":1,"rejected":3,"invalid_link":1,"series_mismatch":1,"number_mismatch":1}',
         '[TvDiziler] result {"origin":"episode_list","count":1}'
