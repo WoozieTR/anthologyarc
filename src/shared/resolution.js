@@ -26,4 +26,36 @@ function getResolutionFromPath(url) {
     return label;
 }
 
-module.exports = { getResolutionFromPath };
+// Read only declared metadata attached to an already-known media URL.
+// No evaluation of remote script, no new requests, no inference of audio
+// from the show's original language.
+function getDeclaredSourceMetadata(text, url) {
+    const result = { quality: '', language: '' };
+    if (typeof text !== 'string' || typeof url !== 'string' || !url) return result;
+    const objects = /\{[^{}]{0,4096}\}/g;
+    const qualities = new Set();
+    const languages = new Set();
+    let object;
+    while ((object = objects.exec(text)) !== null) {
+        const fields = Object.create(null);
+        const pairs = /(?:^|[,{])\s*["']?([a-zA-Z_][a-zA-Z0-9_]*)["']?\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|(\d+)(?=\s*[,}]))/g;
+        let pair;
+        while ((pair = pairs.exec(object[0])) !== null) {
+            fields[pair[1].toLowerCase()] = String(pair[2] ?? pair[3] ?? pair[4] ?? '').replace(/\\\//g, '/').trim();
+        }
+        if (fields.file !== url && fields.src !== url) continue;
+        for (const key of ['label', 'quality', 'height']) {
+            const value = fields[key] || '';
+            const match = /^(2160|1440|1080|720|540|480|360|240)p?$/i.exec(value);
+            if (match) qualities.add(match[1] + 'p');
+        }
+        const audio = (fields.audiolanguage || fields.audio_language || '').toLowerCase();
+        const codes = { tr: 'TR', tur: 'TR', en: 'EN', eng: 'EN', de: 'DE', deu: 'DE', fr: 'FR', fra: 'FR', es: 'ES', spa: 'ES' };
+        if (Object.prototype.hasOwnProperty.call(codes, audio)) languages.add(codes[audio]);
+    }
+    if (qualities.size === 1) result.quality = Array.from(qualities)[0];
+    if (languages.size === 1) result.language = 'Ses: ' + Array.from(languages)[0];
+    return result;
+}
+
+module.exports = { getResolutionFromPath, getDeclaredSourceMetadata };

@@ -1,5 +1,5 @@
 const { sortStreamsByQuality } = require("../shared/quality.js");
-const { getResolutionFromPath } = require("../shared/resolution.js");
+const { getResolutionFromPath, getDeclaredSourceMetadata } = require("../shared/resolution.js");
 const { loadConfig, val, wrapAll } = require("../shared/config.js");
 const { timeoutSignal } = require("../shared/http.js");
 const { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo, asciiFold } = require("../shared/turkish_series.js");
@@ -499,7 +499,8 @@ async function extractStreamsFromEpisodePage(epUrl) {
                     seenStreamUrls.add(vUrl);
                     if (vUrl.includes('preview/') || vUrl.includes('image/') || vUrl.includes('.svg') || vUrl.includes('.jpg') || vUrl.includes('.png')) continue;
 
-                    const quality = getResolutionFromPath(vUrl);
+                    const metadata = getDeclaredSourceMetadata(pHtml, vUrl);
+                    const quality = metadata.quality || getResolutionFromPath(vUrl);
 
                     let server = 'CDN';
                     let streamHeaders = { 'User-Agent': HEADERS['User-Agent'] };
@@ -536,6 +537,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                         title: `⌜ DDizi ⌟ | ${server} (${quality ? quality + ' ' : ''}${isMp4 ? 'MP4' : 'HLS'})`,
                         url: vUrl,
                         quality,
+                        language: metadata.language,
                         provider: 'ddizi',
                         headers: streamHeaders,
                         format: isMp4 ? 'mp4' : 'hls',
@@ -696,11 +698,15 @@ async function extractStreamsFromEpisodePage(epUrl) {
                         if (vUrl.includes('preview/') || vUrl.includes('.jpg') || vUrl.includes('.png')) continue;
                         const fallbackHeaders = { 'User-Agent': HEADERS['User-Agent'], 'Referer': src };
                         const isHls = vUrl.includes('.m3u8');
+                        const metadata = getDeclaredSourceMetadata(pHtml, vUrl);
+                        const quality = metadata.quality || getResolutionFromPath(vUrl);
                         origins.add('episode-generic-iframe');
                         streams.push({
                             name: 'DDizi',
-                            title: `⌜ DDizi ⌟ | Alternatif Kaynak`,
+                            title: `⌜ DDizi ⌟ | Alternatif Kaynak${quality ? ' (' + quality + ')' : ''}`,
                             url: vUrl,
+                            quality,
+                            language: metadata.language,
                             provider: 'ddizi',
                             headers: fallbackHeaders,
                             format: isHls ? 'hls' : 'mp4',

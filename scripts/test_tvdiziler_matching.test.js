@@ -16,7 +16,7 @@ const otherVideoId = 'fixture0002';
 const card = (href, title) => `<a href="${href.slice(1)}"><h2>${title}</h2></a>`;
 const row = (href, number, title) => `<a data-navigo class="truncate" href="${href}">Bölüm <data>${number}</data></a><h6><a itemprop="name">${title}</a></h6>`;
 
-function fixture({ cards, listing, href, candidates, playerUrl = video, streamingData = { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }, title = 'Yeraltı', aliases, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
+function fixture({ cards, listing, href, candidates, playerUrl = video, playerHtml, streamingData = { formats: [{ url: video, mimeType: 'video/mp4', qualityLabel: '360p' }] }, title = 'Yeraltı', aliases, seasons = [{ season_number: 1, episode_count: 16 }] } = {}) {
     const module = { exports: {} };
     const requests = [];
     const diagnostics = [];
@@ -56,7 +56,7 @@ function fixture({ cards, listing, href, candidates, playerUrl = video, streamin
                         : cards || (listing && card(show, 'Yeraltı'));
                     return { ok: true, json: async () => ({ data }) };
                 }
-                if (url.pathname === player) return { ok: true, text: async () => `file: "${playerUrl}"` };
+                if (url.pathname === player) return { ok: true, text: async () => playerHtml || `file: "${playerUrl}"` };
                 if (url.pathname === href) {
                     return { ok: true, text: async () => `<button data-hhs="${player}">Tek Parça</button>` };
                 }
@@ -365,4 +365,17 @@ test('TvDiziler uses explicit YouTube format labels and leaves unlabeled results
         assert.ok(streams.some(stream => stream.ytId === videoId));
         assert.equal(f.requests.filter(request => request === '/youtubei/v1/player').length, 1);
     }
+});
+
+test('TvDiziler uses source-declared metadata for an opaque media URL', async () => {
+    const episode = '/yeralti-23-bolum';
+    const url = 'https://media.fixture.invalid/opaque.mp4';
+    const f = fixture({
+        listing: row(episode, 23, '23. Bölüm'), href: episode,
+        playerHtml: `sources: [{file: "${url}", quality: "1080p", audio_language: "tur"}]`
+    });
+    const [stream] = await f.getStreams();
+    assert.equal(stream?.quality, '1080p');
+    assert.equal(stream?.language, 'Ses: TR');
+    assert.match(stream.title, /1080p/);
 });

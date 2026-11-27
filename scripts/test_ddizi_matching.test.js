@@ -298,3 +298,26 @@ test('DDizi uses explicit YouTube format labels and leaves unlabeled results wit
         assert.equal(f.requests.filter(request => request === '/youtubei/v1/player').length, 1);
     }
 });
+
+test('DDizi uses source-declared metadata for an opaque media URL', async () => {
+    const episode = '/izle/123/yeralti-23-bolum';
+    const url = 'https://media.fixture.invalid/opaque.mp4';
+    const routes = episodePage({
+        '/arama/': anchor(show, 'Yeraltı'),
+        [show]: anchor(episode, '23. Bölüm')
+    }, episode);
+    routes['/player/oynat/fixture'] = `sources: [{file: "${url}", label: "1080p", audioLanguage: "tr"}]`;
+    const f = fixture(routes);
+    const [stream] = await f.getStreams();
+    assert.equal(stream?.quality, '1080p');
+    assert.equal(stream?.language, 'Ses: TR');
+    assert.match(stream.title, /1080p/);
+});
+test('source metadata is associated only with the same URL and conflicting declarations are rejected', () => {
+    const { getDeclaredSourceMetadata } = require('../src/shared/resolution.js');
+    const url = 'https://media.fixture.invalid/opaque.mp4';
+    const other = 'https://media.fixture.invalid/other.mp4';
+    assert.deepEqual(getDeclaredSourceMetadata(`{file: "${other}", label: "1080p", audioLanguage: "tr"}`, url), { quality: '', language: '' });
+    assert.deepEqual(getDeclaredSourceMetadata(`{file: "${url}", label: "1080p", height: 720}`, url), { quality: '', language: '' });
+    assert.deepEqual(getDeclaredSourceMetadata(`{file: "${url}", label: "720p", language: "tr"}`, url), { quality: '720p', language: '' });
+});
