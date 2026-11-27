@@ -1,8 +1,8 @@
 {
-  "name": "Anthology",
+  "name": "Anthology ARC",
   "version": "1.8.44",
   "author": "falsisdev",
-  "description": "Anthology - Türkçe Dizi, Film, Anime ve Canlı TV/Spor Eklenti Deposu",
+  "description": "Anthology ARC - Türkçe Dizi, Film, Anime ve Canlı TV/Spor Eklenti Deposu",
   "scrapers": [
     {
       "id": "anthology_tv",
@@ -22,7 +22,7 @@
         "nv_"
       ],
       "filename": "providers/anthology_tv.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8",
@@ -58,6 +58,50 @@
       "supportsExternalPlayer": true
     },
     {
+      "id": "anthology_spor",
+      "name": "Anthology Canlı Spor",
+      "description": "Spor kategorisine özel canlı TV sağlayıcısı.",
+      "version": "1.8.44",
+      "author": "falsisdev",
+      "supportedTypes": [
+        "tv",
+        "channel"
+      ],
+      "filename": "providers/anthology_spor.js",
+      "enabled": true,
+      "formats": [
+        "hls",
+        "m3u8"
+      ],
+      "logo": "https://raw.githubusercontent.com/falsisdev/anthology/main/assets/canli/aspor.png",
+      "contentLanguage": [
+        "tr"
+      ],
+      "idPrefixes": [
+        "tv:",
+        "tv_"
+      ],
+      "catalogs": [
+        {
+          "type": "tv",
+          "id": "anthology_spor_list",
+          "name": "Anthology Canlı Spor",
+          "extra": [
+            {
+              "name": "search",
+              "isRequired": false
+            }
+          ]
+        }
+      ],
+      "resources": [
+        "catalog",
+        "meta",
+        "stream"
+      ],
+      "supportsExternalPlayer": true
+    },
+    {
       "id": "anthology_plus",
       "name": "Anthology+",
       "description": "TMDB kimliğiyle tam eşleşen birleşik Film, Dizi ve Anime akış motoru (Vixolity, HDFilmDelisi, SinemaCX, AnimeciX, SeiCode, SonAnime).",
@@ -70,7 +114,7 @@
         "anime"
       ],
       "filename": "providers/anthology_plus.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8",
@@ -95,7 +139,7 @@
         "tv"
       ],
       "filename": "providers/filmmodu.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -176,7 +220,7 @@
         "tv"
       ],
       "filename": "providers/hdfilmdelisi.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -216,7 +260,7 @@
         "tv"
       ],
       "filename": "providers/hdfilmizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -256,7 +300,7 @@
         "tv"
       ],
       "filename": "providers/kultfilmler.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -297,7 +341,7 @@
         "series"
       ],
       "filename": "providers/liderfilmizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -348,7 +392,7 @@
         "tv"
       ],
       "filename": "providers/setfilmizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -399,7 +443,7 @@
         "tv"
       ],
       "filename": "providers/sinemacx.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -421,7 +465,7 @@
         "tv"
       ],
       "filename": "providers/webteizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -435,7 +479,7 @@
     {
       "author": "falsisdev",
       "version": "1.8.44",
-      "enabled": true,
+      "enabled": false,
       "supportsExternalPlayer": true,
       "id": "anthology_diziler",
       "name": "Anthology Diziler (Ulusal Ağlar)",
@@ -519,7 +563,7 @@
         "series"
       ],
       "filename": "providers/ddizibox.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -582,7 +626,7 @@
         "tv"
       ],
       "filename": "providers/dizibak.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -623,7 +667,7 @@
         "tv"
       ],
       "filename": "providers/diziboxizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -704,7 +748,7 @@
         "movie"
       ],
       "filename": "providers/dizipod.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -738,7 +782,7 @@
         "tv"
       ],
       "filename": "providers/diziyou.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -752,7 +796,7 @@
     {
       "author": "falsisdev",
       "version": "1.8.44",
-      "enabled": true,
+      "enabled": false,
       "supportsExternalPlayer": true,
       "id": "puhutv",
       "name": "PuhuTV",
@@ -786,7 +830,7 @@
     {
       "author": "falsisdev",
       "version": "1.8.44",
-      "enabled": true,
+      "enabled": false,
       "supportsExternalPlayer": true,
       "id": "trdiziizle",
       "name": "TrDiziİzle",
@@ -893,7 +937,7 @@
         "series"
       ],
       "filename": "providers/youtube_dizifilm.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8",
@@ -945,7 +989,7 @@
         "movie"
       ],
       "filename": "providers/animecix.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4"
       ],
@@ -985,7 +1029,7 @@
         "anime"
       ],
       "filename": "providers/animeprax.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls"
@@ -1026,7 +1070,7 @@
         "anime"
       ],
       "filename": "providers/animom.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls"
@@ -1067,7 +1111,7 @@
         "anime"
       ],
       "filename": "providers/anizium.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4"
       ],
@@ -1109,7 +1153,7 @@
         "anime"
       ],
       "filename": "providers/anizm.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls"
@@ -1149,7 +1193,7 @@
         "movie"
       ],
       "filename": "providers/asyaanimeleri.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -1192,7 +1236,7 @@
         "anime"
       ],
       "filename": "providers/diziwatch.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "mp4",
@@ -1221,7 +1265,7 @@
         "anime"
       ],
       "filename": "providers/seicode.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -1262,7 +1306,7 @@
         "movie"
       ],
       "filename": "providers/sonanime.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4"
       ],

@@ -1,6 +1,6 @@
 <div align="center">
   <img src="assets/logo_1_transparent.png" alt="Anthology Logo" width="130" />
-  <h1>Anthology</h1>
+  <h1>Anthology ARC</h1>
   <p><strong>Nuvio ve Stremio için Doğrulanmış Türkçe Film, Dizi, Anime, Canlı TV ve Zengin Katalog Deposu</strong></p>
 
   <p>
@@ -11,7 +11,7 @@
 
   <p>
     <img src="https://img.shields.io/badge/Sürüm-1.8.44-blue?style=for-the-badge" alt="Sürüm 1.8.44" />
-    <img src="https://img.shields.io/badge/Eklenti-33_Aktif-3b82f6?style=for-the-badge" alt="33 Aktif Eklenti" />
+    <img src="https://img.shields.io/badge/Eklenti-6_Aktif-3b82f6?style=for-the-badge" alt="6 Aktif Eklenti" />
     <img src="https://img.shields.io/badge/Lisans-MIT-green?style=for-the-badge" alt="MIT Lisansı" />
     <img src="https://img.shields.io/badge/Katalog-7_Canlı_Katalog-8b5cf6?style=for-the-badge" alt="7 Canlı TV Kataloğu" />
     <img src="https://img.shields.io/badge/Kanal-388_Canlı_Kanal-00e676?style=for-the-badge" alt="388 Canlı Kanal" />
@@ -25,6 +25,8 @@
     <a href="#-sıkça-sorulan-sorular-sss">❓ <strong>SSS</strong></a>
   </p>
 </div>
+
+> **ARC fork notu:** Bu geliştirme dalı, falsisdev/anthology v1.8.44 temelinde hazırlanmıştır. ARC Nuvio manifestinde yalnızca önceki sürümde seçilen altı sağlayıcı etkin durumdadır; birleşik TV ve Anthology+ varsayılan olarak kapalıdır. Aşağıdaki orijinal proje belgeleri, bağlantıları ve 33 eklentiye ilişkin açıklamalar upstream referansı olarak korunmuştur; ARC'ın etkin sağlayıcı sayısını veya test durumunu göstermez. Yeni ARC sürümü henüz doğrulanmamış ve yayımlanmamıştır.
 
 ---
 
