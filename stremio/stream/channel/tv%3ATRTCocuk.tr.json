@@ -13,48 +13,22 @@
       }
     },
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "TRT Çocuk HD [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/trtcocuk.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "TRT Çocuk HD [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "http://109.205.187.150:8008/sunshine/_mTGp_YjIn-A-pYGa3w4R4wxjsGE8saDKS55FQHYwkiEODl_9bEFfQ3vhW_ru99psIx7PIyo0zJ-a9VAc__N5VqAm9FfAZqnbkv-Eg9YipO6q3m3ON8UJLgOVfLwKMJHx1QFsNXS5CBTv3kZIv4wsdlym1IxHdZOl2qpGGmYB7Y_v6uFwGG-2aKk4Hzo0JLAYZboIVI6Gr3tRtLjVBZoCVJA51PoZmBM-9OdxfiMdeyd1MRvCf7xCPwE9QlbmIK6/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "TRT Çocuk HD [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/trtcocuk.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "TRT Çocuk HD [Kool.ws · Sunucu 6 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/3qM02vTaqgfK8IpngJyxkdUgm2YHLWmn0kpV75EekxS9A6FLur6YFDT_Kmnn1kCTt9VOBrz3h600F62lYBZ5jRLVirf2rzQepJw6W4ytq4aMumTJszKWEv0mIXWdRGSqGjXXXAevagEk0lJZYqJIc98tYMBdWstVGWLv3hufupzYPNiH9BlrHgxe0eYAvftmdi_UqzL4mLmFJvntmt0L1iaMCJv9x8Q-quWdu_tUbBKMrDTimXFy0k6Kt9zyk72F/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "TRT Çocuk HD [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/trtcocuk.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "TRT Çocuk HD [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/trtcocuk.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

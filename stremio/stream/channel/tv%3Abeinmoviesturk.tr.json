@@ -1,36 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "beIN Movies Türk [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/beinmoviesturk.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "beIN Movies Türk [Kool.ws · Sunucu 6 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/qRNy5Akud4WXpBljsp4sORSq4ghMkecTn3qIIkNAmN8NYPP3Vpb1AMPalftdUc8aMMduLUs0yZg2UJdtW46RaVrQX5hdNByZXUpYPn5Oj7HZJBcdjy3s-9JCTIV6eUs3Vqro1TY7LOOmYDaxfk6j3PmVIwn9JRSwz_RDewuWAW6aLj0CEQ_TcNZgVqDvQnxXxMlpOOi56BosCSKzjXZblTDXOBNfBMpM1LjsvPPDufdB1iFKpSOtkW_gxJ38Zhdc/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "beIN Movies Türk [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/beinmoviesturk.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "beIN Movies Türk [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/beinmoviesturk.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

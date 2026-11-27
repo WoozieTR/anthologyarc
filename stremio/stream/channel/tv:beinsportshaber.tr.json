@@ -1,48 +1,22 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "beIN Sports Haber [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/beinsportshaber.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "beIN Sports Haber [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/rEWF-jmRYOgWh_1U-pgGfwZjFpcKKDi7wY3d-QwWQbodFv89FxOMJpa0aW7O5kq9s_Zh7HlRaWEN22ZIawLrLZe8lv3bAbZB6oS2Y17vSS5NTB8OpN_Ih9eN2Bpx8r9z1G7oct1Z5sNcxjLVxIoEdwtUXU4Pf1863mjPeAVXK9LcT7GkLQlbd0SLlGC57tsC-P63YQp5xT7VnR71KRdZTKDiB9jzxrvUFULBmjoQy7m00kBi1AhaU2pR3SOCSv-v/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "beIN Sports Haber [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/beinsportshaber.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "beIN Sports Haber [Kool.ws · Sunucu 7 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/RA_amf_DaMeBO6Yqx1g2ihWHY44JFwfRj7ugm6i4fdCrZmzd09G1JUlRGP63lUDbxRb_jg0VC_yrEMRfsV2qSDS-XcaX9VzYPG3YxKZlk72pRMNecpVwNSgJjCz4p7EEUGjQid-BDd2o_1h4yTouqTDCkvepuIELYpWzYopfwr0uRybJ6Kow3gbMuRXLVVGUX-XeJ9DlggThGvnum69D_Ur9whtpkAd7TbdffdIU2gxLZLotGpDOvtA7ugd3XAu8/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "beIN Sports Haber [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/beinsportshaber.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "beIN Sports Haber [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/beinsportshaber.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

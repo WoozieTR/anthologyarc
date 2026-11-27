@@ -13,48 +13,33 @@
       }
     },
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "TRT Haber HD [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/trthaber.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "TRT Haber HD [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "http://109.205.187.150:8008/sunshine/bqNQ6w-S7VFRdJEy8OFm3YnafRo0xW5qTnu1Szf0UlootWNVMT0lrleGmibYCFuq9jezMyMKJotZPG7mB8Cfwm-BC4yWf4Nxd76Uw1G3b11TzDCXXbQZoMl9n4oCz0-wvWcuaiyEfZgHpow54jpzyw66-dV9bLVU8PfOHPBXYUJLGK8SQa2V-dAv7ujuOjW0pJfrqLJD1GScOfkR-yDyLBJFVuYB-FZec0H6GO9mlmpXUjjC56VZrJXt8cGIOmNS/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "TRT Haber HD [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/trthaber.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "TRT Haber HD [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/HscWypC1YbGsJgoOrTvouV6KGUpVk66ewun6Vy-bG4aDaqVMFwr2MGPVBwTFtMhrkg1V7JrI22Nhx1BIuxONcPIu1kRBUL_Wfb3L2zRV9hyxKRMYJpzPu5h5wlG1iSq6OdvJwMrIls63Oq9t6D74Sse9n7VlR8k_tLnacIW0expXm6iUASfD7LLyGCfm6kd8FTMA3NEMQ_CGC0cdI2RkPKNTcSLcs8BUYU9d7PaxxJjgQH-jDYTQrn6YUhBxfZB0/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "TRT Haber HD [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/trthaber.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "TRT Haber HD [Kool.ws · Sunucu 7 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/-CmpVVSNP4W6FauDH9onWTD_svuZgbfbCb2cJd_Q22nGg18sHMnVarj6FPm_-cYRykol_aQN-ZFNglqTyFhd6HCLYXfFj-MyOtycl3Bsf7Qzf4hW2xTw-EtJQTbxEhQ7v3yikCCVHpyZXWCo7FCBBxU0S8mzcRBT4tbIMfN3iKsACKVCJiJwsFqIv89CHN_CgeqP2Ortm56qItYvXVExgGT3dMT8k8qj4jk7pAX7vdM1NjFIhAfqva11xKjxePw-/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "TRT Haber HD [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/trthaber.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

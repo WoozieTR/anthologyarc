@@ -13,48 +13,22 @@
       }
     },
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Bloomberg HT Ekonomi HD [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/bloomberght.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Bloomberg HT Ekonomi HD [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "http://109.205.187.150:8008/sunshine/uwgBvlPYg2boGGUmWcFbyaj8ch9T_kdUsOne7DngBcO4V3Lhdx1jzLfMztX4VOv4MzP7k1BseDT-I4yJ1jF86go3hYGDFCHLQCbnNqnBaz5kn2DQfmxN5UqoJg4hb5YCHlJzXwNcysVf-2-l2_tlZ7BF-ptrKVpRc5bBCOsWBFQI2HM1hZoadyAoYpd2inKDBAQN5lCs3svLp5RyCJ3ZjtWAp4siS3hOZmEWeAsqyVS7gfbq7J08Eh4qhj3TUSeN/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Bloomberg HT Ekonomi HD [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/bloomberght.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "Bloomberg HT Ekonomi HD [Kool.ws · Sunucu 6 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/TfScK6-f8lSqOzcWotowVCUwtD3Vd0xtI0yQtBdZ1myzXf3CCEq4OImgn2bdB6HJt9yCKcU8z1f8dBMqmGisUUpUAwbYcHKhW-kPS07cv9TLfvZixdTblZs8cas1q-S-bAwIul8k-Omq_ZdU7PCs8ILWk9GL2DkHMclOlXS2eYkRoRaFjuhCOq9ojjye-1PLPi9iSmFV-4zTYQDcBOjMZpFHJ-PjvMbYDxjI3yMtKK_qEIArNx82XeD99HNhTzcl/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "Bloomberg HT Ekonomi HD [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/bloomberght.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Bloomberg HT Ekonomi HD [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/bloomberght.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

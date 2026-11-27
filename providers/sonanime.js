@@ -1,7 +1,7 @@
 /**
  * Anthology Provider: sonanime
  * Built from src/sonanime/index.js
- * Build: v1.8.42 (anthology build system)
+ * Build: v1.8.44 (anthology build system)
  */
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -184,7 +184,6 @@ function cfgReady() {
 }
 var BASE_URL = "https://sonanime.com";
 var API_BASE = "https://api.sonanime.com";
-var TMDB_ANIMATION_GENRE_ID = 16;
 var TMDB_API_KEY = "500330721680edb6d5f7f12ba7cd9023";
 var DEFAULT_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -235,7 +234,6 @@ function resolveTmdbInfo(id, mediaType) {
       if (cleanId.indexOf(":") !== -1) cleanId = cleanId.split(":")[0];
       var numericId = null;
       var titles = [];
-      var genres = [];
       if (cleanId.indexOf("tt") === 0) {
         var findData = yield fetchJson("https://api.themoviedb.org/3/find/" + cleanId + "?api_key=" + TMDB_API_KEY + "&external_source=imdb_id", 6e3);
         if (findData) {
@@ -255,7 +253,6 @@ function resolveTmdbInfo(id, mediaType) {
         var type = mediaType === "tv" || mediaType === "series" ? "tv" : "movie";
         var enData = yield fetchJson("https://api.themoviedb.org/3/" + type + "/" + numericId + "?api_key=" + TMDB_API_KEY, 6e3);
         if (enData) {
-          if (Array.isArray(enData.genres)) genres = enData.genres;
           if (enData.name) titles.push(enData.name);
           if (enData.title) titles.push(enData.title);
           if (enData.original_name) titles.push(enData.original_name);
@@ -263,7 +260,6 @@ function resolveTmdbInfo(id, mediaType) {
         }
         var trData = yield fetchJson("https://api.themoviedb.org/3/" + type + "/" + numericId + "?api_key=" + TMDB_API_KEY + "&language=tr-TR", 6e3);
         if (trData) {
-          if (!genres.length && Array.isArray(trData.genres)) genres = trData.genres;
           if (trData.name) titles.push(trData.name);
           if (trData.title) titles.push(trData.title);
         }
@@ -282,17 +278,17 @@ function resolveTmdbInfo(id, mediaType) {
           uniqueTitles.push(t);
         }
       }
-      return { numericId: numericId ? parseInt(numericId) : null, titles: uniqueTitles, genres };
+      return { numericId: numericId ? parseInt(numericId) : null, titles: uniqueTitles };
     } catch (e) {
-      return { numericId: null, titles: [], genres: [] };
+      return { numericId: null, titles: [] };
     }
   });
 }
 function searchSonAnime(titles, targetTmdb, isMovie) {
   return __async(this, null, function* () {
     if (!titles || !titles.length) return null;
-    var cleanTitles = titles.map(cleanStr).filter(Boolean);
-    var titleMatch = null;
+    var seenSlugs = {};
+    var candidateList = [];
     for (var i = 0; i < titles.length; i++) {
       var q = titles[i];
       var searchRes = yield fetchJson(API_BASE + "/api/anime/search?q=" + encodeURIComponent(q), 6e3);
@@ -300,17 +296,38 @@ function searchSonAnime(titles, targetTmdb, isMovie) {
         for (var k = 0; k < searchRes.length; k++) {
           var item = searchRes[k];
           if (!item || !item.anime_link) continue;
-          if (isMovie !== (item.anime_type === "movie")) continue;
           if (targetTmdb && item.tmdb_id && parseInt(item.tmdb_id) === targetTmdb) {
             return item;
           }
-          if (!titleMatch && (cleanTitles.indexOf(cleanStr(item.anime_name)) !== -1 || cleanTitles.indexOf(cleanStr(item.anime_name_en)) !== -1)) {
-            titleMatch = item;
+          if (!seenSlugs[item.anime_link]) {
+            seenSlugs[item.anime_link] = true;
+            candidateList.push({ item, query: q });
           }
         }
       }
     }
-    return titleMatch;
+    if (candidateList.length === 0) return null;
+    var bestItem = null;
+    var bestScore = -1;
+    for (var j = 0; j < candidateList.length; j++) {
+      var cand = candidateList[j];
+      var a = cand.item;
+      var cleanTarget = cleanStr(cand.query);
+      var name1 = cleanStr(a.anime_name || "");
+      var name2 = cleanStr(a.anime_name_en || "");
+      var score = 0;
+      if (name1 === cleanTarget || name2 === cleanTarget) score += 100;
+      else if (name1.indexOf(cleanTarget) !== -1 || cleanTarget.indexOf(name1) !== -1) score += 50;
+      else if (name2 && (name2.indexOf(cleanTarget) !== -1 || cleanTarget.indexOf(name2) !== -1)) score += 40;
+      var itemIsMovie = a.anime_type === "movie";
+      if (isMovie && itemIsMovie) score += 20;
+      else if (!isMovie && !itemIsMovie) score += 20;
+      if (score > bestScore) {
+        bestScore = score;
+        bestItem = a;
+      }
+    }
+    return bestItem || candidateList[0].item;
   });
 }
 function fetchStreamsBySlug(slug, sNum, eNum, isMovie) {
@@ -403,9 +420,6 @@ function getStreams(id, mediaType, season, episode) {
       var eNum = parseInt(finalEpisode) || 1;
       var tmdbInfo = yield resolveTmdbInfo(rawId, finalMediaType);
       if (!tmdbInfo.titles || !tmdbInfo.titles.length) return [];
-      if (tmdbInfo.genres.length && !tmdbInfo.genres.some(function(genre) {
-        return genre.id === TMDB_ANIMATION_GENRE_ID;
-      })) return [];
       var matchedAnime = yield searchSonAnime(tmdbInfo.titles, tmdbInfo.numericId, !isTv);
       if (!matchedAnime || !matchedAnime.anime_link) return [];
       return yield fetchStreamsBySlug(matchedAnime.anime_link, sNum, eNum, !isTv);

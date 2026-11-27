@@ -1,36 +1,22 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Sözcü TV [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/sozcutv.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Sözcü TV [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/za8d6gq3cyjxI5r4JBRPWqqFly2YV4ak7TiAeBHX5YAr1zY3itmy1oKwUNUyzxqTKkPrgLnG6DSV7hxF9p_fDdcXTuyXjA_vbkmu9GI-WuRsBekUUhCj7GGfFXrwEbzJJ8KbfASszdho3wKmdGyu4rxiUynEKf1F_DvRQgix5_Q6JovBu4sJjO-ihh4mPR8NiCB5ddS1BLXF9LWPtKJrYcR-OfWH5MGcUYlgHlAnNNtxDoFjV6KdWG5e1_AESE_c/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Sözcü TV [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/sozcutv.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "Sözcü TV [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/y6m_AyieRSkgBTzjnk6_p8zNJA-4wBUQbdkUXUpNXC_qfa1hwEyj5Qy1VhDDH9FBDcmb38_HL45G2M82RuqAJG6N8RCuUQ-gYewV9zycWGp8ALxyfc0yDD0y5l3BDP1Cb6Z_L3w6lKuHcjJEYP3GGyyYEd8Fx-X8ysgXYK3dozycF73ZhYxsE13cbi78p3YwRNtf_PDYsd5nBSQ4Imz7VMw9dDjGFnu7oy5L3oUc_svv6zSYcvbsm2fdXV0GbNQa/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "Sözcü TV [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/sozcutv.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

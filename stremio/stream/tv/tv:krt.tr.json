@@ -1,36 +1,22 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "KRT TV [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/krt.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "KRT TV [Kool.ws · Sunucu 1 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/lEg7BA-2FwzDDRv5CWBXnwewaHh9nzautBYW-x2UUQAkI1lbGgu_t2eOSsbjzHybZL4arnaiyrtpJ_4-8UzoFcuKpLU1awOeAk3XuwpXKmEeV_zlAlz2VrfkuW2td_5Oa-aitQEFN9VZaF02XVYio_pi16KYxs-X_Pnn7fHGT7vuCKYWXgYhMsib_h-gMQ6HGGx3EqEHU7xAxTOki7LbExbSSEZwqCXKcXb6Pg0Ua7B02QM0b8vjtOUlExPAwObE/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "KRT TV [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/krt.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "KRT TV [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/y_HagUtfUkLoDy2gFKbBoKiAAN2DlhsL_euKB-lYINwAOXdQ973UJAIszgaWmbOMGS_GAKpK7WVPN5K6dcZ1vs9hqU4OoURut7ciCY6SJ_1kS9PrIfAF5UCxk8t3r77k5C2JmqRRFI61a92NKm8n7IXummeD1fQcVDjKNiw_Q8fZGvxOXuI_l7StfQKi6L1TygZEN4YB9XXsrUk296Fxors_i7UrADpWI1ra4jrR8RkH82q9bdP1Ag2KryQJre_J/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "KRT TV [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/krt.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

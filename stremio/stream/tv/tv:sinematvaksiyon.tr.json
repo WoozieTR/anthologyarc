@@ -1,24 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Sinema TV Aksiyon [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/sinematvaksiyon.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Sinema TV Aksiyon [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/2y9-V82--yb56XHpIBTUFQrw5F1f19UbIaFRGBxWhh9qE2AIuSO3oeEncWkaJ_RD2YIp_1p1gPzg3KcktlhJLbVz43hfSQ9p85gaChrcrcSeGLU9LnLCDHJ4WlBgqb7EUJbE0neSVL3iuGlX8qa00lT7hAIa2puxWYXfA3AzgGaFU8sUEWA5tU3w9hztMDSyyk0APIoKFh00QU5AkpS5RQ2TVbdYhk77r5gBip-VZvYSUXSF6Ih9f1hhws7pRcGv/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Sinema TV Aksiyon [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/sinematvaksiyon.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

@@ -1,24 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Animation 1 [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/animation1.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Animation 1 [Kool.ws · Sunucu 1 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/mVZym8TEwKKDJZYsCWcrwGoFpXAot2Tn7VuHiqU1bG2Oz_u9AuRaY98KlDzYv35tXTtZMsizw9GhztawTm-QtuVxyISIcJnSHYdh9fxDbJEjpI0y7pMf4wfkk3YSnGFtnWkw1GPK7pHisLjaEJ7tKtKfsI-UMbmCPC7DOw1uFwRc1GOVOz_CPnLX_f_LqSDffz46MsEJGSt-9y_O_NTNhI48ZndYbVzzwD8kCGe7rwJWIYU8q0jrNwzbk4GsgWBV/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Animation 1 [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/animation1.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

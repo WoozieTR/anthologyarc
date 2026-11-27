@@ -1,7 +1,7 @@
 /**
  * Anthology Provider: ddizi
  * Built from src/ddizi/index.js
- * Build: v1.8.42 (anthology build system)
+ * Build: v1.8.44 (anthology build system)
  */
 var __defProp = Object.defineProperty;
 var __defProps = Object.defineProperties;
@@ -597,6 +597,8 @@ var require_turkish_series = __commonJS({
         if (dres) {
           name = dres.name || dres.title || name;
           original = dres.original_name || dres.original_title || original;
+          out.originalLanguage = dres.original_language || "";
+          out.originCountry = Array.isArray(dres.origin_country) ? dres.origin_country : [];
           if (foundType === "tv" && dres.seasons) out.seasons = dres.seasons;
         }
         out.title = name || norm.id;

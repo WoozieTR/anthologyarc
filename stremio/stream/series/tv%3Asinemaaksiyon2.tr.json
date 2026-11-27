@@ -1,36 +1,22 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Sinema Aksiyon 2 [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/sinemaaksiyon2.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Sinema Aksiyon 2 [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/-d7zaOUP-cgDuKxKnK7SJmq-BMJSiwI0yrQNmjsTQg3K_8pSakY0JKAHAOjkZOudEpnox-jRqcDnkH702S1dJbYJNWhG5cx_3e0WbLp0XgFVixcM2cOslTm2Wzn4QmL3z5X-EV6lTV4sMcgFAE55GQU6x9wh6ypkn2QGzio4En23NcIG9s9uyaMldtGU_7IN2TSkjcdX1srvcI5UkHLKpr_NOOY4qgq7hWUFlzQe0TlN0dj5U-RSyu-tHmKcOLIe/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Sinema Aksiyon 2 [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/sinemaaksiyon2.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "Sinema Aksiyon 2 [Kool.ws · Sunucu 7 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/W6giIUFr9oxmNHDPcmXLPqRyIBu2Sc7SetDq5H0NoqvtL8CJku1zvpBrHp5gU02_cYR1XEymi5fxs-AV1HM-amxyD5bNyInB85zsdxlwcPPhaPALGDzuRgZNGFV2orZc2bnCih-OpP6riEEtBCpT_bsef4j-XPdL3dD0O4ogtE945eIXe3Ix6PXqdv_IFD2PXDdd5zRDEANz5sy1GwLKqlxcHmpU4XSaXV8rkpGyKcVoMlyUlPJWL6OGdWx0FCkw/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Sinema Aksiyon 2 [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/sinemaaksiyon2.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

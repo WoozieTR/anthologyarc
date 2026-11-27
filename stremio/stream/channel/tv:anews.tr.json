@@ -1,48 +1,33 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "A News [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/anews.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "A News [Kool.ws · Sunucu 1 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/a9lgnkd60auwXFsuInsvXha_MaNrSC7F3QVpemEIfR9rzv5oYShZQzJfvm_cJ8DlvQQkyJC0AJXXbOIVNo8YYm-4TJoUn9IRI0KgMFlatZG1MtfRpew36ag0YmUpAH0vlA2VDYLLY3fSPMepfymYsj_0cy77WTvaLdL7EPiepqVYRklq8TsKvmCJbfUsdHaLawmtWw5xOsiKliWZ9rYyLIMKVqO0jCtXgJReqFjLeibNv3KG7VadshUXzL3U12w_/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "A News [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/anews.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "A News [Kool.ws · Sunucu 6 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/WWdjlWOBiT_1G-mVJMrG9JKBlCty0w25jjmTYwEPjU2BAJdufOIQ19xNDsm9hUrYUiy4J7SfEci1a9zMsaqQw56VOR88FNAvFENAJl0uNf5SrF4Cq-8EGARgAMNP3eokPj8J5ZDnX0ng_1HVpjJW4CCUV2KOJPamJhq_5lEWJCv1aqAUwb-_bAqhsjz6DjLMPyi3hTOL3BRuosW2b93Buw1ZjlrF0BycAAGJDxUtH8OPBoUjpyF-p5_EbSpJ9xQ4/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "A News [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/anews.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "A News [Kool.ws · Sunucu 7 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/zJ4oPdhwBhzVxTz9gH06PDbxgiesWdbLpxKOuHglB7TW9bVAiY2WeKi3e66BzEtJRBrR80un9cr3-V7ciUYqa0llY3kb-o88UtkESIkod-PUWfcbR2qz1LSQZa2IMuJarb0eIUmCM9SnJsNftJIDnUfWHs6byuAiyV-z5cgl-qtypk80YKAz_xBgQnGgeOQ3PYDuAXSM1wcaDHdJ7ebRFIr9G8G_GnC8faic0w9h6296vd6QIV3eW2kpDkjzCdmd/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "A News [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/anews.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

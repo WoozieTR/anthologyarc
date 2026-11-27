@@ -1,9 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "Anthology",
-  "version": "1.8.41",
+  "version": "1.8.44",
   "description": "Anthology - Merkezi Eklenti, API, URL, Oynatıcı ve Sistem Yapılandırması",
-  "mediaApiProviders": [],
   "branding": {
     "name": "Anthology",
     "author": "falsisdev",
@@ -37,11 +36,6 @@
       "vidlink_api_key": "68e094699525b18a70bab2f86b1fa706"
     },
     "live": {
-      "anthology_live": {
-        "base": "https://anthology-live.duckdns.org",
-        "username": "anthology",
-        "password": "falsisdevwashere"
-      },
       "m3u_remote": "https://raw.githubusercontent.com/falsisdev/anthology/main/providers/M3U/Liste/canli.m3u",
       "netvgold_remote": "https://raw.githubusercontent.com/Wiojelt/TurkSpor/main/catalogs/netvgold.json",
       "assets_base": "https://raw.githubusercontent.com/falsisdev/anthology/main/assets/canli/",
@@ -68,7 +62,6 @@
       }
     },
     "vod": {
-      "anthology_live_api": "https://anthology-live.duckdns.org/api/vod/streams",
       "vixolity_base": "https://ha.vixolity.com"
     },
     "movies": {
@@ -78,7 +71,7 @@
         "player": "https://play2.pilavyerplay.top"
       },
       "hdfilmcehennemi": {
-        "base": "https://www.hdfilmcehennemi.nl"
+        "base": "https://www.hdfilmcehennemi.land"
       },
       "hdfilmdelisi": {
         "base": "https://hdfilmdelisi.one",
@@ -125,17 +118,17 @@
         "base": "https://www.ddizi.tel"
       },
       "ddizibox": {
-        "base": "https://ddizibox.com"
+        "base": "https://ddizibox.click"
       },
       "dizibak": {
         "base": "https://dizibak.net",
         "player": "https://player.dizibak.net"
       },
       "dizimom": {
-        "base": "https://ddizimom.net"
+        "base": "https://ddizimom.icu"
       },
       "diziyou": {
-        "base": "https://www.diziyou.one",
+        "base": "https://diziyou.net",
         "storage": "https://storage.diziyou.one"
       },
       "diziboxizle": {
@@ -156,7 +149,7 @@
       "anthology_diziler": {
         "now": "https://www.nowtv.com.tr",
         "show": "https://www.showtv.com.tr",
-        "kanald": "https://kanald.com.tr",
+        "kanald": "https://www.kanald.com.tr",
         "atv": "https://www.atv.com.tr",
         "star": "https://www.startv.com.tr",
         "trt1": "https://www.trt1.com.tr"

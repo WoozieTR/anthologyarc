@@ -1,36 +1,22 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Discovery Channel [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/discoverychannel.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Discovery Channel [Kool.ws · Sunucu 1 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/r6e6-3hoAYfWyp1ioRWaSnzYSGU3V9n8HdtZl__l90GeMYcxPJDRwvGAezDnXvwtM9PjLJuyIgzfJOvcrY-fKDiBmxl4D8RkQp5yUuKxGEPfLVE_UkkP3FucLIk5s-XKgubUJ5oTHXgU3fjGxEgNh7opTUq_FaFonNVmuRQcNWD0BH6Zn3h1cxG62v4HPTgqCDpzoGcxB6dZLzgiVfa853Ao9AHklHe1A2LgRRls5SzcHQnhMnvbY1W2Qq1cLyqx/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Discovery Channel [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/discoverychannel.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "Discovery Channel [Kool.ws · Sunucu 7 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/WZGze0HhuODJtIZUfRCs4FC8fuvI0DOd_HjHt0tRCW8qYxo16ZvZOG5z12z9-pIVQFf5XvuZMiSEeYNjZgPQM73rcvji2Bn6XJrU7P-B0rut-eXByQYKHhX44-gGTqpy-8zQskxo54LpKlsjzCG7Gs-nUq3aebp80dX36VAS5DP_MSbE7c1gBaKBp8C93ryKeNOvlsCI8YkyURg8Zb-Vvqv17ZGMBDheHVZVAXEZCu5ui9XcrmsEWjHayS4dFo4o/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Discovery Channel [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/discoverychannel.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
