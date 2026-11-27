@@ -1,24 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Afyon Türk [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/afyonturk.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "Afyon Türk [Kool.ws · Sunucu 7 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/218KUGEmEkrF6mKqAnyycqbv6qpp_iULT8ZOKxrUS0f6qIgiZZGVBmHLYe18PaPlJF0ZoYBd1hLot3Lvi122JtjgdgV28k4Pjstv2BabbpDaMGOdOaW9Li0uidYxk4j7of_65_Q-dhFoH25b_mRXdJTx0Z-eYpjrNwI1t5hiHw5wZMPx9AbMXNpNxelfZoziQfWtlFWmKhR7Gr51VFs6UBt71K_hIQ7Xdxg-J7lv7iXr2ZQDKLutTldrZodypt8f/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Afyon Türk [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/afyonturk.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

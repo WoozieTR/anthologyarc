@@ -1,48 +1,33 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Euro Star [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/eurostar.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Euro Star [Kool.ws · Sunucu 1 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/KeFEaiGHZDqqRxlufMnRHl8BFW2Kdbv6_lcmvbLLlCjGzRfNNj_OgCqNsGQ_A5BAiXOPJGMJGKg_tbrOMb2S090qZlBAXDs8myyBTskJyT-mMzW7EtHJCV1KoWADOmg0ZpD4TY669HwjEkcljmWH4_dKyG7Xqwe7Y049yrST-JDSu5b6v0-2yq-q_xeJv-cUwA9mzOFdnWVWQLBohtia7fD5ICwgQUmqVP2-0QpuLu8YYPfmOsUqEClgrXCYhMzc/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Euro Star [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/eurostar.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "Euro Star [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/NaJH5jLk77we93pd57kx_FCBHuar5V8TkaqrkvtWX_npeNCcWAqE2hAuCYqxBt2LVC-u2lEkVuBLk_OyICVwIhndYzK337pRvmTzAS9HpqlLDJmwkMG_bozLRCYIKBg8fuR0ucurofhi_JEM1mVCgmIJOEsJqMErA4r-H_mxbc-uiFZN4AAxhExx-oePo7ahD-MR-4KaVF5Vr-vLr1UEhZpgOVA1x3_95L4Hg8aCR9a7eHBwOqNirbbWdvc0VyG7/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "Euro Star [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/eurostar.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "Euro Star [Kool.ws · Sunucu 7 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/7Aq9onM48N3Eo2wqlNopE46pxhvePuh-m9-HCi4KRfczcc0qq5xyzGqnK93dS2GdIqfO0wq8d1ouPzFhRuLCIs7clu55jOPQcXqK0Lt4jcfmNEmNKkJ8gq5mKX0KFS29_EBmNtmrbura0HZjt1MhPQfGkxkymFeGIKNSsdlKIC7GI-W0qRCeV4zlYqfYpgnp0brvcAz-9fzEzpXCyPE-gwrWP8sib48TWjmuhs8sLuuvhlj9N87TispWLSTGF_jK/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Euro Star [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/eurostar.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

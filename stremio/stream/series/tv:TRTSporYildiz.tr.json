@@ -1,72 +1,35 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "TRT Spor Yıldız HD [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/trtsporyildiz.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "TRT Spor Yıldız HD [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/7s9PkFl3qKmhRVYiaQZOJVi-31aiAdab0xTxgyZpuWdYITf9gsJPsN0Nh4rmAcPtaZwLZx-_j5jtcqsTqRDHFYapDuL5YX6FkO2AjMAxBfoatecvYQqrFeKtsOovIGbmKPw5C0WqFNcdiuYmhrjMjMDg1NXgniS5YDKVcRLdcDtqfKKDsY1eO_gl3ZBtYHxgpgMCNxkNYb6qmaF4cY1djmIjOGO1kZUuW9JGb4s_N3IQ-LhPgPzpw4C1Rv6hkkO1/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Resmi / Doğrudan Akış ⌟",
+      "name": "⌜ AlemdarSport ⌟",
       "title": "TRT Spor Yıldız HD [1080p FHD]",
-      "url": "https://anthology-live.duckdns.org/live/trtsporyildiz.m3u8?username=anthology&password=falsisdevwashere&source=direct",
+      "url": "https://alemdar.e56334ad5bbbc0ca4c80f717246c2500.cfd/mdalemdar/trtspor2/index.m3u8",
       "headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "Referer": "https://alemdarsport.cfd",
+        "Origin": "https://alemdarsport.cfd"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Yedek Akış ⌟",
-      "title": "TRT Spor Yıldız HD [1080p FHD]",
-      "url": "https://anthology-live.duckdns.org/live/trtsporyildiz.m3u8?username=anthology&password=falsisdevwashere&source=backup",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "TRT Spor Yıldız HD [Kool.ws · Sunucu 7 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/y5Py3eMJv42fzR1TspgzgtP82rYvvJihZF37iK_Q3LMcBKDcwt8Id95UO02PfKGZTmL1OItgwRid7czrfOApW7Faya3UK0VL0QzbjcptpGc9o6-RPBDhh0nt5JFadD5PopdaLVZTQUPr94iQetYEfRPHQSOOb6S6dQ1_TiI4oxZVCHjnQ_LbABUan_fvE-zEFHGHuSVElzmqHwlSDw4ctDsjE6u9R1rosJFevz9RW0AHbFYkWTUJooBs14CPlkmg/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Alemdar Sport ⌟",
-      "title": "TRT Spor Yıldız HD [1080p FHD]",
-      "url": "https://anthology-live.duckdns.org/live/trtsporyildiz.m3u8?username=anthology&password=falsisdevwashere&source=alemdarsport",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "TRT Spor Yıldız HD [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/trtsporyildiz.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "TRT Spor Yıldız HD [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/trtsporyildiz.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

@@ -107,13 +107,11 @@ function parseDurationSec(str) {
 }
 
 /**
- * Checks that the episode marker belongs to the requested series title.
+ * Validates if YouTube video title matches requested season and episode number.
+ * Prevents false matches (e.g. matching 10. Bölüm when Episode 1 is requested).
  */
-function matchesEpisode(videoTitle, targetTitle, season, episode, cumEpisode) {
+function matchesEpisode(videoTitle, season, episode, cumEpisode) {
     var norm = asciiFold(videoTitle);
-    var title = cleanTitle(targetTitle).split(' ').join('[^a-z0-9]+');
-    var separator = '[^a-z0-9]*';
-    var seasonLabel = '(?:[1-9]\\d?\\s*\\.?\\s*(?:sezon|season)' + separator + ')?';
 
     var epCandidates = [episode];
     if (cumEpisode && cumEpisode !== episode) {
@@ -123,12 +121,13 @@ function matchesEpisode(videoTitle, targetTitle, season, episode, cumEpisode) {
     var matchedEp = false;
     for (var i = 0; i < epCandidates.length; i++) {
         var ep = epCandidates[i];
-        var episodeLabel = '(?:' + ep + '\\s*\\.?\\s*(?:bolumu?|episode|ep|b)' +
-            '|(?:bolumu?|episode|ep)\\s*[:#-]?\\s*' + ep + '|b' + ep + ')(?![a-z0-9])';
-        var titleFirst = new RegExp('(?:^|[|–—])' + separator + title + separator + seasonLabel + episodeLabel);
-        var episodeFirst = new RegExp('^' + separator + seasonLabel + episodeLabel +
-            separator + title + '(?:' + separator + '$|\\s*[|–—-])');
-        if (titleFirst.test(norm) || episodeFirst.test(norm)) {
+        var epRegexes = [
+            new RegExp('(?:^|[^0-9])' + ep + '\\s*\\.?\\s*(?:bolum|bolumu|b|episode|ep)(?:[^0-9]|$)', 'i'),
+            new RegExp('(?:bolum|bolumu|episode|ep)\\s*[:#-]?\\s*' + ep + '(?:[^0-9]|$)', 'i'),
+            new RegExp('(?:^|[^0-9])b' + ep + '(?:[^0-9]|$)', 'i'),
+            new RegExp('(?:^|\\s)-?\\s*' + ep + '\\.bolum', 'i')
+        ];
+        if (epRegexes.some(function (r) { return r.test(norm); })) {
             matchedEp = true;
             break;
         }
@@ -136,9 +135,16 @@ function matchesEpisode(videoTitle, targetTitle, season, episode, cumEpisode) {
 
     if (!matchedEp) return false;
 
-    // Unlabeled episodes can still match by cumulative episode number.
-    var sMatch = norm.match(/(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i);
-    return !sMatch || parseInt(sMatch[1], 10) === Number(season);
+    // If season > 1, check that an explicitly different season is not mentioned
+    if (season > 1) {
+        var otherSeasonRegex = /(?:^|[^0-9])([1-9]\d?)\s*\.?\s*(?:sezon|season)(?:[^0-9]|$)/i;
+        var sMatch = norm.match(otherSeasonRegex);
+        if (sMatch && parseInt(sMatch[1], 10) !== season) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 // ── Popüler Türk Kanalları Abone Veritabanı (0ms Ağ Gecikmesi) ──────────────
@@ -205,9 +211,14 @@ function formatNumberCompact(n) {
  * Dizi ve film adının tam sınırlarını kontrol eder; Pusu, Terör vb. yan yapımları eler.
  */
 function matchesTitle(videoTitle, targetTitle) {
-    var vNorm = cleanTitle(videoTitle);
-    var tNorm = cleanTitle(targetTitle);
-    if (!tNorm || (' ' + vNorm + ' ').indexOf(' ' + tNorm + ' ') === -1) return false;
+    var vNorm = asciiFold(videoTitle).toLowerCase();
+    var tNorm = asciiFold(targetTitle).toLowerCase();
+
+    var tWords = tNorm.split(/\s+/).filter(function (w) { return w.length > 1; });
+    var allWords = tWords.length > 0 && tWords.every(function (w) {
+        return new RegExp('\\b' + w + '\\b', 'i').test(vNorm);
+    });
+    if (!allWords) return false;
 
     // Hedef başlıkta geçmeyen türev/yan yapım isimlerini negatif regex ile ele
     var spinOffs = ['pusu', 'teror', 'gladio', 'irak', 'filistin', 'vatan'];
@@ -592,7 +603,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
                 if (!matchesTitle(vid.title, targetTitle)) continue;
 
                 // Dizi ise bölüm kontrolü
-                if (isSeries && !matchesEpisode(vid.title, targetTitle, sNum, eNum, cumEpisode)) continue;
+                if (isSeries && !matchesEpisode(vid.title, sNum, eNum, cumEpisode)) continue;
 
                 candidateVideos.push(vid);
                 if (candidateVideos.length >= 4) break;

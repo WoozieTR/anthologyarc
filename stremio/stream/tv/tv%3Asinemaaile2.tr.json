@@ -1,36 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Sinema Aile 2 [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/sinemaaile2.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Sinema Aile 2 [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "http://109.205.187.150:8008/sunshine/6S4iJOw7Y_l-V8L6CtDNsHuOas3lJg6_UtRNpmIwOz8nCzVyOttuTv1ITrlwvMNjNd1sH5dmB3Lm-VXJwOm_1pi9jTdArtqGp4sghi9jWKuQe9JR7GApvzMJB0iS35svTm65M_bSMreZmCTo3wLA6zanvbpbMs2wru4lAWRhzowd-GzyquOdf4A5SITVOwBsQbOnU0NoyOyJOoWCouTn33kE_D3vs2ckNtY3J4Z8nnfUlrVivjsRS9mket42eBnx/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Sinema Aile 2 [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/sinemaaile2.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Sinema Aile 2 [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/sinemaaile2.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

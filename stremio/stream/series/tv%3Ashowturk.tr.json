@@ -1,36 +1,22 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Show Türk [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/showturk.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "Show Türk [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/c4fC8wix7PtKyNnfW3dMsWnwuVHd5qaGlt3A4R2rkKi5lZW8DKzQf3L-o6jRwjrZi7vaDCGwVhN3h1q5rlVIxolur33TxeVxC7TIr3Uak2xqU9tXYv0KcjkGbA1N8wdjHkSFQ-AmDfCdSKX_BrS4R2qfYgqX1gScvtKWKokYYpf0__fO_heaQfL8fTlq2P5fxGIUlS5RrPWrI64_ZjN8aTXE-rcu7Pae44MKfiT_QkmuCVNCfuFSk5r0OiT4J3gu/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "Show Türk [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/showturk.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "Show Türk [Kool.ws · Sunucu 7 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/ZDNzjAbdJdF6Tgjx9zTZl6SQ0md3cfUOkpF7N9WD6UzoK7urIe94HsU8St9J2Qzz2vyZTXa1G9vGHbL31_DiqX4_OFGoYUGRIzPzeC0aRtS5_FFjgmEP757NWdr_DTkdVlhS7P4VMrclLZDeumnbonj5RIV3IIVd4pOmkD0KeRVAf3xm7tOIj6KRwFmo8zme2MPXiDIJyadEGfBMtcVA_g3-tFNBDjnnaqKqSOmcX9fYcQwCijmd_v694XDsEuN9/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Show Türk [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/showturk.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

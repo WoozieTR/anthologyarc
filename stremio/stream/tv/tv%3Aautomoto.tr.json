@@ -1,24 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Automoto (fr) [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/automoto.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "Automoto (fr) [Kool.ws · Sunucu 7 · HD]",
+      "url": "http://109.205.187.150:8008/sunshine/MGmPo1pClUM1icVFE8wqvtpCuR1RpauhAA4GFVTQhkTJ0ds0mML9e0ASWQzMpbErEfNQwKxL_fbKLjkg6bOCmkZkLUp_TzrSEXwf0B1sYD-3Qx7IvAV9VP3pJLcchNaOYP9FvrfR307lpxrKaYxmt5PA4Nfi5WlUnig0f2lgIwUvKhMNZjCw8Ll-hr4o7enuC48ZVQr_paAa2SJwfDsxoLQr2i9hGyIfovrVcQ-cw1Uhf12MCrHWKkv1qLpIUFxb/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "Automoto (fr) [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/automoto.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

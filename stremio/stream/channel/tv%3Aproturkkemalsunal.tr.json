@@ -1,24 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Proturk Kemal Sunal [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/proturkkemalsunal.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "Proturk Kemal Sunal [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/UdcKgleJPGYexmeqSVcqRTqi3kEfHubfT7bLj_fq-_YCgi9CucaokvGuvQT569AqU6izKFu4bpXLAA-BoVVxgbubJpMLaP_eLOO2ECrfE0aKA7YTW9QoLFwZ5_vaymLwlS8XE80VkJ9fUm5gYkhvt0bM2PRWdIL0tlJCOd2fI-3zF4ZjY9G7mS8vuqXnGSUJ6omfLtuybT-SkfMnvwCWcWHHHw04J7m-7DQI09AzuoObJvI7lcUP2tb3LLE2Pd5g/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "Proturk Kemal Sunal [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/proturkkemalsunal.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

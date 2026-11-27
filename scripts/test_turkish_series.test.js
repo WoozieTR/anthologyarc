@@ -12,10 +12,10 @@ const movie = base + '/movie/456';
 const find = base + '/find/tt123' + key + '&external_source=imdb_id' + localized;
 const search = base + '/search/tv?query=G%C3%B6lge%20Dizi&api_key=fixture' + localized + '&page=1';
 const seasons = [{ id: 7, season_number: 2, episode_count: 8 }];
-const tvDetails = { name: 'Gölge Dizi', original_name: 'Original Series', seasons };
+const tvDetails = { name: 'Gölge Dizi', original_name: 'Original Series', original_language: 'tr', origin_country: ['TR'], seasons };
 const tvIdentity = {
     title: 'Gölge Dizi', origTitle: 'Original Series', numericId: '123', imdbId: 'tt456',
-    aliases: ['tt456', 'Diğer Ad'], seasons, kind: 'tmdb', type: 'tv'
+    aliases: ['tt456', 'Diğer Ad'], seasons, kind: 'tmdb', type: 'tv', originalLanguage: 'tr', originCountry: ['TR']
 };
 
 function translations(...names) {
@@ -142,7 +142,7 @@ test('IMDb movie waits for find, then overlaps four requests and preserves alias
     assert.deepEqual(result.output, {
         title: 'Film', origTitle: 'Original Film', numericId: '456', imdbId: 'tt123',
         aliases: ['tt123', 'Çeviri', 'Alt A', 'Alt B', 'Alt C', 'Alt D', 'Alt E', 'Alt F'],
-        seasons: [], kind: 'imdb', type: 'movie'
+        seasons: [], kind: 'imdb', type: 'movie', originalLanguage: '', originCountry: []
     });
     assert.deepEqual(result.starts, [0, 30, 30, 30, 30]);
     assert.equal(result.elapsed, 130);
@@ -155,7 +155,8 @@ test('raw title preserves best-match fallback when details fail and translations
         [tv + '/external_ids' + key, 70, { imdb_id: 'tt456' }],
         [tv + '/translations' + key, 40, null]
     ], 'Gölge Dizi', 'tv');
-    assert.deepEqual(result.output, { ...tvIdentity, aliases: ['tt456'], seasons: [], kind: 'title' });
+    const { originalLanguage, originCountry, ...fallbackIdentity } = tvIdentity;
+    assert.deepEqual(result.output, { ...fallbackIdentity, aliases: ['tt456'], seasons: [], kind: 'title' });
     assert.deepEqual(result.starts, [0, 30, 30, 30]);
     assert.equal(result.elapsed, 130);
 });
@@ -169,7 +170,7 @@ test('movie alternatives survive invalid JSON from external IDs', async () => {
     ], '456', 'movie');
     assert.deepEqual(result.output, {
         title: 'Film', origTitle: 'Film', numericId: '456', imdbId: '',
-        aliases: ['Çeviri', 'Alternatif'], seasons: [], kind: 'tmdb', type: 'movie'
+        aliases: ['Çeviri', 'Alternatif'], seasons: [], kind: 'tmdb', type: 'movie', originalLanguage: '', originCountry: []
     });
     assert.deepEqual(result.starts, [0, 0, 0, 0]);
     assert.equal(result.elapsed, 100);

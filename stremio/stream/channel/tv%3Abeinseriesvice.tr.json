@@ -1,24 +1,11 @@
 {
   "streams": [
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "beIN Series Vice [Kool.ws · Otomatik]",
-      "url": "https://anthology-live.duckdns.org/live/beinseriesvice.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S7 ⌟",
+      "title": "beIN Series Vice [Kool.ws · Sunucu 7 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/ct0WZ0owBqFFw4wgUnRoe07RASZADrmTF_deWxY8N-LD8di-XxqwqHwsBpOyhU46odu19SS69NDnjSzeuUNOOh9531NI9oIvia5iX7OYnVHHqxjNCdzj5eNLoEyiltobeGbd1WKVZb69EbtZLGlG4okdI1y_EAT9rTi73bjBIr2MrQ2wKzWcn9MBQMGggJP901Z6WXeQ43K-6W8alsQFq7C04Fcjzb7AzoQgKyXNtH2KCO-4WZNNQvcqXrZN3oPZ/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S7 ⌟",
-      "title": "beIN Series Vice [Kool.ws · Sunucu 7]",
-      "url": "https://anthology-live.duckdns.org/live/beinseriesvice.m3u8?username=anthology&password=falsisdevwashere&source=kool7",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true

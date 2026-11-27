@@ -25,36 +25,22 @@
       }
     },
     {
-      "name": "⌜ Anthology Live · Otomatik ⌟",
-      "title": "Show TV HD [1080p FHD · Ultra Hızlı]",
-      "url": "https://anthology-live.duckdns.org/live/showtv.m3u8?username=anthology&password=falsisdevwashere",
+      "name": "⌜ Kool S1 ⌟",
+      "title": "Show TV HD [Kool.ws · Sunucu 1 · 4K UHD]",
+      "url": "https://dh1d0x4vhplnwwy.fu8oefd4v2dvlmaarur6crfp.com/sunshine/Z1Kb1BmzCqvM5GdPYam1S2e9QhRFutYvP6P6i1wAj5CWNB1w32cAmk3B3U-6VgFjKyt7EAg7c3ESVWwwo1ZSoghjWDlkTzTtFOcXyS18o4v91aBKazB7kavRvWALWcKs1B8MqdKH7J5D-rAK4SmH7z8R5tSpxoj_d5y9ueQIL5D6MlHSXyMiygLpBil_TJISTpelkYahWpK10bEpBwYSWz_dWc_c8TN5OnsBW2sRC7liMt2hzx7EzYLspttBFY-P/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
       }
     },
     {
-      "name": "⌜ Anthology Live · Kool S1 ⌟",
-      "title": "Show TV HD [Kool.ws · Sunucu 1]",
-      "url": "https://anthology-live.duckdns.org/live/showtv.m3u8?username=anthology&password=falsisdevwashere&source=kool1",
+      "name": "⌜ Kool S6 ⌟",
+      "title": "Show TV HD [Kool.ws · Sunucu 6 · HD]",
+      "url": "https://ysahwcw3awufuoc.fu8oefd4v2dvlmaarur6crfp.com/sunshine/B5RljSdml_uPm0NdtO2t9ize4w9TTlh9tLOAXIe-EQrrVxd_jPse5U6jmW1q7MXQNp54X9Gxt3jFwsSrq4EeDVBfLVcyQry9GWxpgkEDpmpc81PgCT-nWdG7W_hQnPVil6nLQ16Xocf_6zuf189xgUnOOemyzoqDUGunTa3UlTPqVCEXrMtjfY0xGQuIE0FmNJZuISLh9Kw-SzwS9Ex5gGGZGb3qdcCYtyFD-I6xc9IrwOtNEjrRJFw4vuovstXU/hls/index.m3u8",
       "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-      },
-      "behaviorHints": {
-        "isLive": true
-      }
-    },
-    {
-      "name": "⌜ Anthology Live · Kool S6 ⌟",
-      "title": "Show TV HD [Kool.ws · Sunucu 6]",
-      "url": "https://anthology-live.duckdns.org/live/showtv.m3u8?username=anthology&password=falsisdevwashere&source=kool6",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       "behaviorHints": {
         "isLive": true
