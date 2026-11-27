@@ -1,7 +1,8 @@
 const { sortStreamsByQuality } = require("../shared/quality.js");
+const { getResolutionFromPath } = require("../shared/resolution.js");
 const { loadConfig, val, wrapAll } = require("../shared/config.js");
 const { timeoutSignal } = require("../shared/http.js");
-const { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require("../shared/turkish_series.js");
+const { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo, asciiFold } = require("../shared/turkish_series.js");
 
 var _cfgReady = null;
 function cfgReady() {
@@ -55,7 +56,7 @@ async function resolveYouTubeMp4(ytId) {
                 if (data.streamingData.hlsManifestUrl) {
                     return {
                         url: data.streamingData.hlsManifestUrl,
-                        quality: '1080p',
+                        quality: '',
                         isHls: true,
                         format: 'hls',
                         headers: {
@@ -68,7 +69,7 @@ async function resolveYouTubeMp4(ytId) {
                     if (formats.length > 0) {
                         return {
                             url: formats[0].url,
-                            quality: formats[0].qualityLabel || '360p',
+                            quality: formats[0].qualityLabel || '',
                             isHls: false,
                             format: 'mp4',
                             headers: {
@@ -90,7 +91,40 @@ function getValidTmdbKey() {
     return '500330721680edb6d5f7f12ba7cd9023';
 }
 
-async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
+// Use the same title/episode adjacency rules as YouTube Dizifilm.
+function matchesYouTubeEpisode(videoTitle, title, season, episode, cumEpisode) {
+    const normalized = asciiFold(videoTitle);
+    const series = asciiFold(title).match(/[a-z0-9]+/g);
+    if (!series) return false;
+
+    const separator = '[^a-z0-9]*';
+    const seasonMarker = '([1-9]\\d?)\\s*\\.?\\s*(?:sezon|season)';
+    const labeledSeason = normalized.match(new RegExp('(?:^|[^0-9])' + seasonMarker + '\\b'));
+    if (labeledSeason && Number(labeledSeason[1]) !== season) return false;
+
+    // Without a season label, use the cumulative number when TMDB provides it.
+    if (!labeledSeason && cumEpisode === null) return false;
+    const num = labeledSeason
+        ? (cumEpisode !== null && episode !== cumEpisode ? '(?:' + episode + '|' + cumEpisode + ')' : episode)
+        : cumEpisode;
+    const episodeLabel = '(?:' + num + '\\s*\\.?\\s*(?:bolumu?|episode|ep|b)' +
+        '|(?:bolumu?|episode|ep)\\s*[:#-]?\\s*' + num + '|b' + num + ')(?![a-z0-9])';
+    const seriesLabel = series.join('[^a-z0-9]+');
+    const seasonLabel = '(?:' + seasonMarker + separator + ')?';
+    const titleFirst = new RegExp('(?:^|[|–—])' + separator + seriesLabel + separator + seasonLabel + episodeLabel);
+    const episodeFirst = new RegExp('^' + separator + seasonLabel + episodeLabel +
+        separator + seriesLabel + '(?:' + separator + '$|\\s*[|–—-])');
+    return titleFirst.test(normalized) || episodeFirst.test(normalized);
+}
+
+function logResultOrigin(origin) {
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+        console.log('[DDizi] result origin=' + origin);
+    }
+}
+
+async function resolveOfficialYouTubeFallback(searchTitles, season, episode, cumEpisode) {
+    const title = searchTitles[0];
     try {
         const queries = [];
         if (season > 1) {
@@ -135,14 +169,14 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                         const vTitle = (data.videoDetails && data.videoDetails.title) || '';
 
                         // Duration must be at least 15 minutes (900 seconds) for a full episode
-                        if (duration >= 900) {
+                        if (duration >= 900 && searchTitles.some(name => matchesYouTubeEpisode(vTitle, name, season, episode, cumEpisode))) {
                             const streams = [];
                             if (data.streamingData && data.streamingData.hlsManifestUrl) {
                                 streams.push({
                                     name: 'DDizi',
                                     title: `⌜ DDizi ⌟ | Resmi YouTube HLS (${vTitle.slice(0, 50)})`,
                                     url: data.streamingData.hlsManifestUrl,
-                                    quality: '1080p',
+                                    quality: '',
                                     provider: 'ddizi',
                                     format: 'hls',
                                     isHls: true,
@@ -156,9 +190,9 @@ async function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode
                                 if (formats.length > 0) {
                                     streams.push({
                                         name: 'DDizi',
-                                        title: `⌜ DDizi ⌟ | Resmi YouTube MP4 (${formats[0].qualityLabel || '720p'})`,
+                                        title: `⌜ DDizi ⌟ | Resmi YouTube MP4${formats[0].qualityLabel ? ' (' + formats[0].qualityLabel + ')' : ''}`,
                                         url: formats[0].url,
-                                        quality: formats[0].qualityLabel || '720p',
+                                        quality: formats[0].qualityLabel || '',
                                         provider: 'ddizi',
                                         format: 'mp4',
                                         isHls: false,
@@ -192,6 +226,22 @@ function ultraClean(str) {
         .replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g').replace(/[çÇ]/g, 'c')
         .replace(/[^a-z0-9]/g, '')
         .trim();
+}
+
+function lastPathSegment(href) {
+    return href.split(/[?#]/)[0].replace(/\/+$/, '').split('/').pop();
+}
+
+function seriesSlugKey(href) {
+    return ultraClean(lastPathSegment(href).replace(/-(?:\d+-)?son-bolum(?:-|$).*$/i, '').replace(/-izle(?:-|$).*$/i, ''));
+}
+
+function parseEpisodeLink(href) {
+    const slug = asciiFold(lastPathSegment(href));
+    const match = slug.match(/^(.+?)-sezon-(\d+)-bolumu?-(\d+)(?:-|$)/) ||
+        slug.match(/^(.+?)(?:-(\d+)-sezon)?-(\d+)-bolumu?(?:-|$)/);
+    if (!match) return null;
+    return { series: ultraClean(match[1]), season: Number(match[2]) || null, episode: Number(match[3]) };
 }
 
 async function resolveTmdbInfo(id, mediaType) {
@@ -373,26 +423,19 @@ async function getMeta(args) {
             const videos = [];
             const seen = new Set();
 
-            const slugPart = (showSlug.split('/')[1] || showSlug).replace(/-\d+-son-bolum.*$/i, '').replace(/-izle.*$/i, '');
-            const baseSlugKey = ultraClean(slugPart);
-            const titleKey = ultraClean(title);
+            const seriesKeys = [seriesSlugKey(showSlug), ultraClean(title)].filter(Boolean);
 
             for (const ep of epMatches) {
                 const epSlug = ep[2];
                 if (!epSlug || seen.has(epSlug)) continue;
 
-                const epTitle = ep[3].replace(/<[^>]+>/g, '').trim();
-                const epClean = ultraClean(epSlug + ' ' + epTitle);
-
-                // Ensure episode belongs to this show
-                if (baseSlugKey && !epClean.includes(baseSlugKey) && titleKey && !epClean.includes(titleKey)) {
-                    continue;
-                }
+                const link = parseEpisodeLink(ep[1]);
+                if (!link || !seriesKeys.includes(link.series)) continue;
 
                 seen.add(epSlug);
-
-                const epNumMatch = epTitle.match(/(\d+)\s*\.?\s*bölüm/i) || epSlug.match(/-(\d+)-bolum/i);
-                const epNum = epNumMatch ? parseInt(epNumMatch[1]) : 1;
+                const epTitle = ep[3].replace(/<[^>]+>/g, '').trim();
+                const epNumMatch = epTitle.match(/(\d+)\s*\.?\s*bölüm/i);
+                const epNum = epNumMatch ? parseInt(epNumMatch[1]) : link.episode;
 
                 videos.push({
                     id: `ddizi:ep:${epSlug.replace(/\/$/, '')}`,
@@ -432,6 +475,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
 
         const iframes = [...epHtml.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)];
         const streams = [];
+        const origins = new Set();
 
         for (const ifr of iframes) {
             let src = ifr[1];
@@ -455,10 +499,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                     seenStreamUrls.add(vUrl);
                     if (vUrl.includes('preview/') || vUrl.includes('image/') || vUrl.includes('.svg') || vUrl.includes('.jpg') || vUrl.includes('.png')) continue;
 
-                    let quality = '1080p';
-                    if (vUrl.includes('720') || vUrl.includes('itag=22')) quality = '720p';
-                    else if (vUrl.includes('480')) quality = '480p';
-                    else if (vUrl.includes('360') || vUrl.includes('itag=18')) quality = '360p';
+                    const quality = getResolutionFromPath(vUrl);
 
                     let server = 'CDN';
                     let streamHeaders = { 'User-Agent': HEADERS['User-Agent'] };
@@ -489,9 +530,10 @@ async function extractStreamsFromEpisodePage(epUrl) {
                     // Keep master.m3u8 intact for ExoPlayer adaptive sync (prevents 3s chunk freezing)
                     var isMp4 = vUrl.toLowerCase().includes('.mp4');
                     var isHls = !isMp4;
+                    origins.add('episode-direct');
                     streams.push({
                         name: 'DDizi',
-                        title: `⌜ DDizi ⌟ | ${server} (${quality}${isMp4 ? ' MP4' : ' HLS'})`,
+                        title: `⌜ DDizi ⌟ | ${server} (${quality ? quality + ' ' : ''}${isMp4 ? 'MP4' : 'HLS'})`,
                         url: vUrl,
                         quality,
                         provider: 'ddizi',
@@ -522,22 +564,23 @@ async function extractStreamsFromEpisodePage(epUrl) {
                                     'User-Agent': HEADERS['User-Agent'],
                                     'Referer': 'https://www.dailymotion.com/'
                                 };
-streams.push({
-                                name: 'DDizi',
-                                title: '⌜ DDizi ⌟ | Dailymotion (1080p HLS)',
-                                url: autoQual.url,
-                                quality: '1080p',
-                                provider: 'ddizi',
-                                headers: dmHeaders,
-                                format: 'hls',
-                                isHls: true,
-                                behaviorHints: {
-                                    notWebReady: true,
-                                    proxyHeaders: {
-                                        request: dmHeaders
+                                origins.add('episode-dailymotion');
+                                streams.push({
+                                    name: 'DDizi',
+                                    title: '⌜ DDizi ⌟ | Dailymotion (HLS)',
+                                    url: autoQual.url,
+                                    quality: '',
+                                    provider: 'ddizi',
+                                    headers: dmHeaders,
+                                    format: 'hls',
+                                    isHls: true,
+                                    behaviorHints: {
+                                        notWebReady: true,
+                                        proxyHeaders: {
+                                            request: dmHeaders
+                                        }
                                     }
-                                }
-                            });
+                                    });
                             }
                         }
                     } catch (e) {}
@@ -557,7 +600,8 @@ streams.push({
                         foundDirectMp4 = true;
                         const isHls = !!ytStream.isHls;
                         const fmt = ytStream.format || (isHls ? 'hls' : 'mp4');
-                        const qualLabel = isHls ? `HLS (${ytStream.quality})` : `MP4 (${ytStream.quality})`;
+                        const qualLabel = (isHls ? 'HLS' : 'MP4') + (ytStream.quality ? ' (' + ytStream.quality + ')' : '');
+                        origins.add('episode-youtube-innertube');
                         streams.push({
                             name: 'DDizi',
                             title: `⌜ DDizi ⌟ | YouTube ${qualLabel}`,
@@ -595,12 +639,14 @@ streams.push({
                                 if (formats.length > 0) {
                                     formats.sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
                                     for (const fmt of formats.slice(0, 1)) {
+                                        const quality = fmt.qualityLabel || fmt.quality || '';
                                         const ytHeaders = { 'User-Agent': HEADERS['User-Agent'] };
+                                        origins.add('episode-youtube-invidious');
                                         streams.push({
                                             name: 'DDizi',
-                                            title: `⌜ DDizi ⌟ | YouTube MP4 (${fmt.qualityLabel || fmt.quality || 'HD'})`,
+                                            title: `⌜ DDizi ⌟ | YouTube MP4${quality ? ' (' + quality + ')' : ''}`,
                                             url: fmt.url,
-                                            quality: fmt.qualityLabel || '720p',
+                                            quality,
                                             provider: 'ddizi',
                                             headers: ytHeaders,
                                             format: 'mp4',
@@ -620,6 +666,7 @@ streams.push({
                     }
 
                     // 3. Native Stremio / Nuvio YouTube player fallback
+                    origins.add('episode-youtube-native');
                     streams.push({
                         name: 'DDizi',
                         title: '⌜ DDizi ⌟ | YouTube (Resmi Yayın)',
@@ -649,6 +696,7 @@ streams.push({
                         if (vUrl.includes('preview/') || vUrl.includes('.jpg') || vUrl.includes('.png')) continue;
                         const fallbackHeaders = { 'User-Agent': HEADERS['User-Agent'], 'Referer': src };
                         const isHls = vUrl.includes('.m3u8');
+                        origins.add('episode-generic-iframe');
                         streams.push({
                             name: 'DDizi',
                             title: `⌜ DDizi ⌟ | Alternatif Kaynak`,
@@ -669,7 +717,7 @@ streams.push({
             }
         }
 
-        // Sort streams: Direct unbroken MP4s (Ciner, Yandex) first, then 1080p down
+        // Sort streams: Direct unbroken MP4s (Ciner, Yandex) first, then by resolution
         streams.sort((a, b) => {
             const aIsDirectMp4 = (a.url && a.url.includes('.mp4')) ? 1 : 0;
             const bIsDirectMp4 = (b.url && b.url.includes('.mp4')) ? 1 : 0;
@@ -679,6 +727,7 @@ streams.push({
             return bQ - aQ;
         });
 
+        for (const origin of origins) logResultOrigin(origin);
         return streams;
     } catch (e) {
         return [];
@@ -697,6 +746,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         }
 
         if (typeof tmdbIdOrArgs === 'string' && tmdbIdOrArgs.startsWith('ddizi:show:')) {
+            await cfgReady();
             const showMeta = await getMeta(tmdbIdOrArgs);
             if (showMeta && showMeta.meta && Array.isArray(showMeta.meta.videos) && showMeta.meta.videos.length > 0) {
                 return await getStreams(showMeta.meta.videos[0].id);
@@ -704,6 +754,7 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         }
 
         if (typeof tmdbIdOrArgs === 'string' && tmdbIdOrArgs.startsWith('ddizi:ep:')) {
+            await cfgReady();
             const slug = tmdbIdOrArgs.replace('ddizi:ep:', '');
             const epUrl = `${BASE_URL}/izle/${slug}`;
             return await extractStreamsFromEpisodePage(epUrl);
@@ -728,26 +779,25 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             }
         }
 
-        const info = await resolveTmdbInfo(id, mediaType || 'tv');
+        const [info] = await Promise.all([resolveTmdbInfo(id, mediaType || 'tv'), cfgReady()]);
         const searchTitles = seriesSearchTitles(info);
         if (nrm.kind === 'title' && searchTitles.length === 0) searchTitles.push(String(id || '').trim());
         if (searchTitles.length === 0) return [];
 
         let cumEpisode = episode;
-        if (season > 1 && Array.isArray(info.seasons) && info.seasons.length > 0) {
-            let sum = 0;
+        if (season > 1) {
+            const seasons = Array.isArray(info.seasons) ? info.seasons : [];
             for (let s = 1; s < season; s++) {
-                const sObj = info.seasons.find(x => x.season_number === s);
-                if (sObj && sObj.episode_count) {
-                    sum += sObj.episode_count;
+                const previous = seasons.find(entry => entry && entry.season_number === s);
+                if (!previous || !Number.isInteger(previous.episode_count) || previous.episode_count <= 0) {
+                    cumEpisode = null;
+                    break;
                 }
-            }
-            if (sum > 0) {
-                cumEpisode = sum + episode;
+                cumEpisode += previous.episode_count;
             }
         }
 
-        const candidateNums = (cumEpisode !== episode) ? [cumEpisode, episode] : [episode];
+        const candidateNums = cumEpisode !== null && cumEpisode !== episode ? [cumEpisode, episode] : [episode];
 
         for (const title of searchTitles) {
             const form = new URLSearchParams();
@@ -765,44 +815,15 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
             const contentToSearch = leftMatch ? leftMatch[1] : (sHtml.split(/class=["']right_sidebar["']/i)[0] || sHtml);
 
             const seriesMatches = [...contentToSearch.matchAll(/<a href="([^"]*\/diziler\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
-            if (seriesMatches.length === 0) continue;
-
             const cleanTarget = ultraClean(title);
-            let matchedShowHref = null;
+            if (!cleanTarget) continue;
 
-            // 1. Exact match on title text (sm[3])
-            for (const sm of seriesMatches) {
-                const sName = (sm[3] || '').replace(/<[^>]+>/g, '').trim();
-                if (ultraClean(sName) === cleanTarget) {
-                    matchedShowHref = sm[1];
-                    break;
-                }
-            }
+            const matchedShow = seriesMatches.find(sm => ultraClean(sm[2].replace(/<[^>]+>/g, '')) === cleanTarget) ||
+                seriesMatches.find(sm => seriesSlugKey(sm[1]) === cleanTarget);
+            if (!matchedShow) continue;
 
-            // 2. Exact match on slug without ID (sm[2])
-            if (!matchedShowHref) {
-                for (const sm of seriesMatches) {
-                    const slugOnly = (sm[2] || '').split('/').pop().replace(/-\d+-son-bolum.*$/i, '').replace(/-izle.*$/i, '');
-                    if (ultraClean(slugOnly) === cleanTarget) {
-                        matchedShowHref = sm[1];
-                        break;
-                    }
-                }
-            }
-
-            // 3. Starts with or contains match
-            if (!matchedShowHref) {
-                for (const sm of seriesMatches) {
-                    const sName = (sm[3] || '').replace(/<[^>]+>/g, '').trim();
-                    const sClean = ultraClean(sName);
-                    if (sClean.startsWith(cleanTarget) || cleanTarget.startsWith(sClean) || sClean.includes(cleanTarget)) {
-                        matchedShowHref = sm[1];
-                        break;
-                    }
-                }
-            }
-
-            if (!matchedShowHref) continue;
+            let matchedShowHref = matchedShow[1];
+            const seriesKeys = [cleanTarget, seriesSlugKey(matchedShowHref)].filter(Boolean);
             if (!matchedShowHref.startsWith('http')) matchedShowHref = `${BASE_URL}${matchedShowHref.startsWith('/') ? '' : '/'}${matchedShowHref}`;
 
             // Check pages (starting with main page, then sayfa-N if not found)
@@ -832,34 +853,36 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
                 const epMatches = [...pageContent.matchAll(/<a href="([^"]*\/izle\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
                 if (epMatches.length === 0) continue;
 
-                let targetEpUrl = null;
+                const links = [];
+                for (const ep of epMatches) {
+                    const identity = parseEpisodeLink(ep[1]);
+                    if (!identity || !seriesKeys.includes(identity.series)) continue;
 
-                for (const num of candidateNums) {
-                    const epRegex = new RegExp(`(?:^|\\s|\\.|-)${num}\\.?\\s*bölüm`, 'i');
-                    const epSlugRegex = new RegExp(`-${num}-bolum`, 'i');
+                    const label = asciiFold(ep[2].replace(/<[^>]+>/g, ' '));
+                    const labeledSeason = label.match(/\b(\d+)\s*\.?\s*sezon\b/);
+                    const labeledEpisode = label.match(/\b(\d+)\s*\.?\s*bolumu?\b/) ||
+                        label.match(/\bbolumu?\s*[:#-]?\s*(\d+)\b/);
+                    if (labeledSeason && Number(labeledSeason[1]) !== season) continue;
+                    if (identity.season && identity.season !== season) continue;
 
-                    for (const ep of epMatches) {
-                        const epText = ep[2].replace(/<[^>]+>/g, '').toLowerCase().replace(/\s+/g, ' ');
-                        const epLink = ep[1].toLowerCase();
-                        if (epRegex.test(epText) || epSlugRegex.test(epLink)) {
-                            targetEpUrl = ep[1];
-                            break;
-                        }
+                    const hasSeason = identity.season || labeledSeason;
+                    if (labeledEpisode) {
+                        const number = Number(labeledEpisode[1]);
+                        // Different numbers need a verified cumulative/season-relative pair.
+                        if (number !== identity.episode && (!hasSeason || !candidateNums.includes(number))) continue;
                     }
-                    if (targetEpUrl) break;
-                }
 
-                // If season > 1, also try explicit season+episode pattern
-                if (!targetEpUrl && season > 1) {
-                    const seasonRegex = new RegExp(`${season}\\.?\\s*sezon\\s*${episode}\\.?\\s*bölüm`, 'i');
-                    const seasonSlugRegex = new RegExp(`(?:sezon-${season}-bolum-${episode}|${season}-sezon-${episode}-bolum)`, 'i');
-                    for (const ep of epMatches) {
-                        const epText = ep[2].replace(/<[^>]+>/g, '').toLowerCase().replace(/\s+/g, ' ');
-                        const epLink = ep[1].toLowerCase();
-                        if (seasonRegex.test(epText) || seasonSlugRegex.test(epLink)) {
-                            targetEpUrl = ep[1];
-                            break;
-                        }
+                    // Prefer the cumulative link. Local numbering needs explicit season evidence.
+                    if (identity.episode === cumEpisode || (identity.episode === episode && hasSeason)) {
+                        links.push({ href: ep[1], episode: identity.episode });
+                    }
+                }
+                let targetEpUrl = null;
+                for (const num of candidateNums) {
+                    const match = links.find(link => link.episode === num);
+                    if (match) {
+                        targetEpUrl = match.href;
+                        break;
                     }
                 }
 
@@ -873,9 +896,9 @@ async function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
 
         // Fallback: If no streams found from DDizi (e.g. video removed due to DMCA/telif like Son Yaz), search official YouTube full episode
         if (searchTitles.length > 0) {
-            const mainTitle = searchTitles[0];
-            const ytStreams = await resolveOfficialYouTubeFallback(mainTitle, season, episode, cumEpisode);
+            const ytStreams = await resolveOfficialYouTubeFallback(searchTitles, season, episode, cumEpisode);
             if (ytStreams && ytStreams.length > 0) {
+                logResultOrigin('youtube-search');
                 return ytStreams;
             }
         }
@@ -896,7 +919,8 @@ if (typeof getStreams === "function") {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = wrapAll({ getStreams, getMeta, getCatalog }, cfgReady);
+    module.exports = wrapAll({ getMeta, getCatalog }, cfgReady);
+    module.exports.getStreams = getStreams;
 }
 if (typeof globalThis !== 'undefined') {
     globalThis.getStreams = getStreams;
