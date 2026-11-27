@@ -24,3 +24,14 @@ test('rejects an explicitly conflicting season for a season-one request', () => 
 test('rejects ambiguous season identity for a later-season request', () => {
     assert.equal(matches('Example Series 3. Bolum', 'Example Series', 2, 3), false);
 });
+
+test('accepts an explicitly matching first season', () => {
+    assert.equal(matches('Example Series 1. Sezon 3. Bolum', 'Example Series', 1, 3), true);
+});
+test('keeps unlabelled first-season behavior', () => {
+    assert.equal(matches('Example Series 3. Bolum', 'Example Series', 1, 3), true);
+});
+test('recognizes season-first wording and rejects contradictory season labels', () => {
+    assert.equal(matches('Example Series Sezon 2 3. Bolum', 'Example Series', 2, 3), true);
+    assert.equal(matches('Example Series 2. Sezon 3. Bolum 1. Sezon', 'Example Series', 2, 3), false);
+});
