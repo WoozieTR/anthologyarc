@@ -11,6 +11,18 @@ function getResolutionFromPath(url) {
         if (label && label !== candidate) return '';
         label = candidate;
     }
+    // Prefer explicit resolution markers over unqualified numeric hints.
+    if (label) return label;
+
+    // Only infer the common HD heights from a whole path segment or a
+    // separated filename suffix. Never inspect query strings or fragments.
+    const hints = /(?:\/(720|1080)(?=\/|$)|[-_](720|1080)(?=\.(?:mp4|mkv|webm|m4v|m3u8|mpd)$))/gi;
+    let hint;
+    while ((hint = hints.exec(match[1])) !== null) {
+        const candidate = (hint[1] || hint[2]) + 'p';
+        if (label && label !== candidate) return '';
+        label = candidate;
+    }
     return label;
 }
 

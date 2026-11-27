@@ -324,8 +324,13 @@ test('TvDiziler labels direct streams only when the path provides a resolution',
         ['/episode.mp4', ''],
         ['/episode.mp4?token=720-480-360&itag=22', ''],
         ['/episode1720480.mp4', ''],
-        ['/720/episode.mp4', ''],
-        ['/episode-1080.mp4', ''],
+        ['/720/episode.mp4', '720p'],
+        ['/episode-1080.mp4', '1080p'],
+        ['/1080/episode.mp4', '1080p'],
+        ['/episode_720.mp4', '720p'],
+        ['/720/episode-1080.mp4', ''],
+        ['/episode1080.mp4', ''],
+        ['/episode-1080.txt', ''],
         ['/720p/episode-1080.mp4', '720p'],
         ['/720p/episode-1280x720.mp4', '720p'],
         ['/720p-1080p/episode.mp4', ''],
@@ -337,7 +342,8 @@ test('TvDiziler labels direct streams only when the path provides a resolution',
         assert.equal(stream?.url, url);
         assert.equal(stream.quality, quality, path);
         assert.equal(stream.title.includes('720p'), quality === '720p', path);
-        assert.doesNotMatch(stream.title, /(?:1080|480|360)p/);
+        assert.equal(stream.title.includes('1080p'), quality === '1080p', path);
+        assert.doesNotMatch(stream.title, /(?:480|360)p/);
     }
 });
 
