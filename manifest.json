@@ -16,7 +16,7 @@
         "series"
       ],
       "filename": "providers/anthology_m3u.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8",
@@ -40,7 +40,7 @@
         "series"
       ],
       "filename": "providers/liderfilmizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -195,7 +195,7 @@
         "tv"
       ],
       "filename": "providers/vidlink.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "m3u8"
@@ -218,7 +218,7 @@
         "tv"
       ],
       "filename": "providers/dizibak.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -312,7 +312,7 @@
         "tv"
       ],
       "filename": "providers/filmmodu.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -393,7 +393,7 @@
         "tv"
       ],
       "filename": "providers/diziyou.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -415,7 +415,7 @@
         "movie"
       ],
       "filename": "providers/dizipod.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -449,7 +449,7 @@
         "tv"
       ],
       "filename": "providers/sinemacx.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -755,7 +755,7 @@
         "tv"
       ],
       "filename": "providers/diziboxizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "hls",
@@ -970,7 +970,7 @@
         "series"
       ],
       "filename": "providers/ddizibox.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1073,7 +1073,7 @@
         "tv"
       ],
       "filename": "providers/vidmody.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1096,7 +1096,7 @@
         "tv"
       ],
       "filename": "providers/webteizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1182,7 +1182,7 @@
         "tv"
       ],
       "filename": "providers/setfilmizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1233,7 +1233,7 @@
         "tv"
       ],
       "filename": "providers/kultfilmler.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1273,7 +1273,7 @@
         "tv"
       ],
       "filename": "providers/hdfilmdelisi.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1313,7 +1313,7 @@
         "tv"
       ],
       "filename": "providers/hdfilmizle.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1353,7 +1353,7 @@
         "channel"
       ],
       "filename": "providers/anthology_belgesel_cocuk.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1397,7 +1397,7 @@
         "channel"
       ],
       "filename": "providers/anthology_muzik.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1441,7 +1441,7 @@
         "channel"
       ],
       "filename": "providers/anthology_sinema.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1487,7 +1487,7 @@
         "anime"
       ],
       "filename": "providers/diziwatch.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "mp4",
