@@ -656,7 +656,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                                         title: '⌜ TvDiziler ⌟ | ' + label + ' (' + (isHls ? 'HLS' : 'MP4') + (quality ? ' ' + quality : '') + ')',
                                         url: streamUrl,
                                         quality: quality,
-                                        language: metadata.language,
+                                        ...(metadata.language ? { language: metadata.language } : {}),
                                         format: isHls ? 'hls' : 'mp4',
                                         isHls: isHls,
                                         provider: 'tvdiziler',
