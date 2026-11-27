@@ -119,6 +119,14 @@ var require_resolution = __commonJS({
         if (label && label !== candidate) return "";
         label = candidate;
       }
+      if (label) return label;
+      const hints = /(?:\/(720|1080)(?=\/|$)|[-_](720|1080)(?=\.(?:mp4|mkv|webm|m4v|m3u8|mpd)$))/gi;
+      let hint;
+      while ((hint = hints.exec(match[1])) !== null) {
+        const candidate = (hint[1] || hint[2]) + "p";
+        if (label && label !== candidate) return "";
+        label = candidate;
+      }
       return label;
     }
     module2.exports = { getResolutionFromPath: getResolutionFromPath2 };
