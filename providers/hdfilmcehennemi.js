@@ -37,8 +37,11 @@ var require_config = __commonJS({
   "src/shared/config.js"(exports2, module2) {
     var CONFIG_URL = "https://raw.githubusercontent.com/falsisdev/anthology/main/config.json";
     var CONFIG_TTL_MS = 10 * 60 * 1e3;
+    var CONFIG_FAILURE_COOLDOWN_MS = 30 * 1e3;
+    var CONFIG_FETCH_TIMEOUT_MS = 8 * 1e3;
     var _cfg = null;
-    var _cfgTime = 0;
+    var _cfgTime = null;
+    var _cfgInFlight = null;
     function _cfgLocalRead() {
       try {
         if (typeof require === "undefined") return null;
@@ -64,37 +67,67 @@ var require_config = __commonJS({
       return null;
     }
     function _cfgFetch() {
-      return fetch(CONFIG_URL, {
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var options = {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
           "Accept": "application/json"
         }
+      };
+      if (controller) options.signal = controller.signal;
+      var deadline = Date.now() + CONFIG_FETCH_TIMEOUT_MS;
+      var timeoutError = new Error("config.json timeout");
+      var timer;
+      var timeout = new Promise(function(_, reject) {
+        timer = setTimeout(function() {
+          reject(timeoutError);
+        }, CONFIG_FETCH_TIMEOUT_MS);
+      });
+      var request = Promise.resolve().then(function() {
+        return fetch(CONFIG_URL, options);
       }).then(function(res) {
+        if (Date.now() >= deadline) throw timeoutError;
         if (!res || !res.ok) throw new Error("config.json " + (res && res.status));
         if (typeof res.json === "function") return res.json();
         return res.text().then(function(t) {
           return JSON.parse(t);
         });
       });
+      return Promise.race([request, timeout]).then(function(config) {
+        if (Date.now() >= deadline) throw timeoutError;
+        return config;
+      }).catch(function(e) {
+        if (e === timeoutError && controller) controller.abort();
+        throw e;
+      }).finally(function() {
+        clearTimeout(timer);
+      });
     }
     function loadConfig2() {
       var now = Date.now();
       if (_cfg && now - _cfgTime < CONFIG_TTL_MS) return Promise.resolve(_cfg);
+      if (_cfgInFlight) return _cfgInFlight;
       var local = _cfgLocalRead();
       if (local && typeof local === "object") {
         _cfg = local;
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return Promise.resolve(_cfg);
       }
-      return _cfgFetch().then(function(c) {
+      if (!_cfg && _cfgTime !== null && now - _cfgTime < CONFIG_FAILURE_COOLDOWN_MS) {
+        return Promise.resolve(null);
+      }
+      _cfgInFlight = Promise.resolve().then(_cfgFetch).then(function(c) {
         _cfg = c && typeof c === "object" ? c : {};
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return _cfg;
       }).catch(function() {
         _cfg = null;
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return _cfg;
+      }).finally(function() {
+        _cfgInFlight = null;
       });
+      return _cfgInFlight;
     }
     function val2(pathStr) {
       if (!_cfg || !pathStr) return void 0;
@@ -134,9 +167,77 @@ var require_config = __commonJS({
   }
 });
 
+// src/shared/http_deadline.js
+var require_http_deadline = __commonJS({
+  "src/shared/http_deadline.js"(exports2, module2) {
+    function withDeadline(deadline, signal, cancel, operation) {
+      var timer;
+      var onAbort;
+      var cancelled = false;
+      var timeoutError = new Error("Request timeout");
+      function cancelRequest(error) {
+        if (cancelled) return;
+        cancelled = true;
+        try {
+          cancel(error);
+        } catch (e) {
+        }
+      }
+      function stop(reject, error) {
+        reject(error);
+        cancelRequest(error);
+      }
+      function abortReason() {
+        if (signal.reason !== void 0) return signal.reason;
+        var error = new Error("The operation was aborted");
+        error.name = "AbortError";
+        return error;
+      }
+      function checkDeadline() {
+        if (Date.now() >= deadline) {
+          cancelRequest(timeoutError);
+          throw timeoutError;
+        }
+      }
+      var limit = new Promise(function(_, reject) {
+        if (signal && signal.aborted) {
+          stop(reject, abortReason());
+          return;
+        }
+        timer = setTimeout(function() {
+          stop(reject, timeoutError);
+        }, Math.max(0, deadline - Date.now()));
+        if (canListen(signal)) {
+          onAbort = function() {
+            stop(reject, abortReason());
+          };
+          signal.addEventListener("abort", onAbort);
+        }
+      });
+      var request = Promise.resolve().then(function() {
+        if (signal && signal.aborted) throw abortReason();
+        checkDeadline();
+        return operation();
+      }).then(function(value) {
+        checkDeadline();
+        return value;
+      });
+      return Promise.race([limit, request]).finally(function() {
+        if (timer !== void 0) clearTimeout(timer);
+        if (onAbort) signal.removeEventListener("abort", onAbort);
+      });
+    }
+    function canListen(signal) {
+      return signal && typeof signal.addEventListener === "function" && typeof signal.removeEventListener === "function";
+    }
+    module2.exports = { withDeadline, canListen };
+  }
+});
+
 // src/shared/http.js
 var require_http = __commonJS({
   "src/shared/http.js"(exports2, module2) {
+    var withDeadline = require_http_deadline().withDeadline;
     var DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     function timeoutSignal2(ms) {
       if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
@@ -148,19 +249,66 @@ var require_http = __commonJS({
       }, ms);
       return controller.signal;
     }
+    function headersWithUserAgent(headers) {
+      if (typeof Headers === "function" && headers instanceof Headers) {
+        var copy = new Headers(headers);
+        if (!copy.get("User-Agent")) copy.set("User-Agent", DEFAULT_UA);
+        return copy;
+      }
+      if (Array.isArray(headers)) {
+        var entries = headers.slice();
+        if (!entries.some(function(entry) {
+          return entry[0].toLowerCase() === "user-agent" && entry[1];
+        })) entries.push(["User-Agent", DEFAULT_UA]);
+        return entries;
+      }
+      var fields = Object.assign({}, headers);
+      if (!Object.keys(fields).some(function(key) {
+        return key.toLowerCase() === "user-agent" && fields[key];
+      })) fields["User-Agent"] = DEFAULT_UA;
+      return fields;
+    }
+    var bodyReaders = ["arrayBuffer", "blob", "bytes", "formData", "json", "text"];
+    function responseWithDeadline(response, run) {
+      if (!response) return response;
+      var methods = /* @__PURE__ */ new Map();
+      return new Proxy(response, {
+        get: function(target, key) {
+          var value = Reflect.get(target, key, target);
+          if (typeof value !== "function" || key === "constructor") return value;
+          if (!methods.has(key)) {
+            methods.set(key, function() {
+              var args = arguments;
+              if (bodyReaders.indexOf(key) !== -1) {
+                return run(function() {
+                  return value.apply(target, args);
+                });
+              }
+              var result = value.apply(target, args);
+              return key === "clone" ? responseWithDeadline(result, run) : result;
+            });
+          }
+          return methods.get(key);
+        }
+      });
+    }
     function fetchWithTimeout2(url, options, ms) {
-      ms = ms || 1e4;
-      options = options || {};
-      if (!options.signal) {
-        options.signal = timeoutSignal2(ms);
+      var deadline = Date.now() + (ms || 1e4);
+      var fetchOptions = Object.assign({}, options);
+      fetchOptions.headers = headersWithUserAgent(fetchOptions.headers);
+      var signal = fetchOptions.signal;
+      var controller = !signal && typeof AbortController === "function" ? new AbortController() : null;
+      if (controller) fetchOptions.signal = controller.signal;
+      function run(operation) {
+        return withDeadline(deadline, signal, function(error) {
+          if (controller) controller.abort(error);
+        }, operation);
       }
-      if (!options.headers) {
-        options.headers = {};
-      }
-      if (!options.headers["User-Agent"] && !options.headers["user-agent"]) {
-        options.headers["User-Agent"] = DEFAULT_UA;
-      }
-      return fetch(url, options);
+      return run(function() {
+        return fetch(url, fetchOptions);
+      }).then(function(response) {
+        return responseWithDeadline(response, run);
+      });
     }
     module2.exports = {
       DEFAULT_UA,

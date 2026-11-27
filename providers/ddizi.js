@@ -103,13 +103,38 @@ var require_quality = __commonJS({
   }
 });
 
+// src/shared/resolution.js
+var require_resolution = __commonJS({
+  "src/shared/resolution.js"(exports2, module2) {
+    function getResolutionFromPath2(url) {
+      const match = /^https?:\/\/[^/?#]+(\/[^?#]*)/i.exec(url);
+      if (!match) return "";
+      const indicators = /(?:^|[\/_.-])([1-9]\d{2,4}x)?(2160|1440|1080|720|540|480|360|240)(p)?(?=$|[\/_.-])/gi;
+      let label = "";
+      let indicator;
+      while ((indicator = indicators.exec(match[1])) !== null) {
+        const [, width, height, suffix] = indicator;
+        if (!width && !suffix) continue;
+        const candidate = height + "p";
+        if (label && label !== candidate) return "";
+        label = candidate;
+      }
+      return label;
+    }
+    module2.exports = { getResolutionFromPath: getResolutionFromPath2 };
+  }
+});
+
 // src/shared/config.js
 var require_config = __commonJS({
   "src/shared/config.js"(exports2, module2) {
     var CONFIG_URL = "https://raw.githubusercontent.com/falsisdev/anthology/main/config.json";
     var CONFIG_TTL_MS = 10 * 60 * 1e3;
+    var CONFIG_FAILURE_COOLDOWN_MS = 30 * 1e3;
+    var CONFIG_FETCH_TIMEOUT_MS = 8 * 1e3;
     var _cfg = null;
-    var _cfgTime = 0;
+    var _cfgTime = null;
+    var _cfgInFlight = null;
     function _cfgLocalRead() {
       try {
         if (typeof require === "undefined") return null;
@@ -135,37 +160,67 @@ var require_config = __commonJS({
       return null;
     }
     function _cfgFetch() {
-      return fetch(CONFIG_URL, {
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var options = {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
           "Accept": "application/json"
         }
+      };
+      if (controller) options.signal = controller.signal;
+      var deadline = Date.now() + CONFIG_FETCH_TIMEOUT_MS;
+      var timeoutError = new Error("config.json timeout");
+      var timer;
+      var timeout = new Promise(function(_, reject) {
+        timer = setTimeout(function() {
+          reject(timeoutError);
+        }, CONFIG_FETCH_TIMEOUT_MS);
+      });
+      var request = Promise.resolve().then(function() {
+        return fetch(CONFIG_URL, options);
       }).then(function(res) {
+        if (Date.now() >= deadline) throw timeoutError;
         if (!res || !res.ok) throw new Error("config.json " + (res && res.status));
         if (typeof res.json === "function") return res.json();
         return res.text().then(function(t) {
           return JSON.parse(t);
         });
       });
+      return Promise.race([request, timeout]).then(function(config) {
+        if (Date.now() >= deadline) throw timeoutError;
+        return config;
+      }).catch(function(e) {
+        if (e === timeoutError && controller) controller.abort();
+        throw e;
+      }).finally(function() {
+        clearTimeout(timer);
+      });
     }
     function loadConfig2() {
       var now = Date.now();
       if (_cfg && now - _cfgTime < CONFIG_TTL_MS) return Promise.resolve(_cfg);
+      if (_cfgInFlight) return _cfgInFlight;
       var local = _cfgLocalRead();
       if (local && typeof local === "object") {
         _cfg = local;
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return Promise.resolve(_cfg);
       }
-      return _cfgFetch().then(function(c) {
+      if (!_cfg && _cfgTime !== null && now - _cfgTime < CONFIG_FAILURE_COOLDOWN_MS) {
+        return Promise.resolve(null);
+      }
+      _cfgInFlight = Promise.resolve().then(_cfgFetch).then(function(c) {
         _cfg = c && typeof c === "object" ? c : {};
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return _cfg;
       }).catch(function() {
         _cfg = null;
-        _cfgTime = now;
+        _cfgTime = Date.now();
         return _cfg;
+      }).finally(function() {
+        _cfgInFlight = null;
       });
+      return _cfgInFlight;
     }
     function val2(pathStr) {
       if (!_cfg || !pathStr) return void 0;
@@ -205,9 +260,77 @@ var require_config = __commonJS({
   }
 });
 
+// src/shared/http_deadline.js
+var require_http_deadline = __commonJS({
+  "src/shared/http_deadline.js"(exports2, module2) {
+    function withDeadline(deadline, signal, cancel, operation) {
+      var timer;
+      var onAbort;
+      var cancelled = false;
+      var timeoutError = new Error("Request timeout");
+      function cancelRequest(error) {
+        if (cancelled) return;
+        cancelled = true;
+        try {
+          cancel(error);
+        } catch (e) {
+        }
+      }
+      function stop(reject, error) {
+        reject(error);
+        cancelRequest(error);
+      }
+      function abortReason() {
+        if (signal.reason !== void 0) return signal.reason;
+        var error = new Error("The operation was aborted");
+        error.name = "AbortError";
+        return error;
+      }
+      function checkDeadline() {
+        if (Date.now() >= deadline) {
+          cancelRequest(timeoutError);
+          throw timeoutError;
+        }
+      }
+      var limit = new Promise(function(_, reject) {
+        if (signal && signal.aborted) {
+          stop(reject, abortReason());
+          return;
+        }
+        timer = setTimeout(function() {
+          stop(reject, timeoutError);
+        }, Math.max(0, deadline - Date.now()));
+        if (canListen(signal)) {
+          onAbort = function() {
+            stop(reject, abortReason());
+          };
+          signal.addEventListener("abort", onAbort);
+        }
+      });
+      var request = Promise.resolve().then(function() {
+        if (signal && signal.aborted) throw abortReason();
+        checkDeadline();
+        return operation();
+      }).then(function(value) {
+        checkDeadline();
+        return value;
+      });
+      return Promise.race([limit, request]).finally(function() {
+        if (timer !== void 0) clearTimeout(timer);
+        if (onAbort) signal.removeEventListener("abort", onAbort);
+      });
+    }
+    function canListen(signal) {
+      return signal && typeof signal.addEventListener === "function" && typeof signal.removeEventListener === "function";
+    }
+    module2.exports = { withDeadline, canListen };
+  }
+});
+
 // src/shared/http.js
 var require_http = __commonJS({
   "src/shared/http.js"(exports2, module2) {
+    var withDeadline = require_http_deadline().withDeadline;
     var DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     function timeoutSignal2(ms) {
       if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
@@ -219,19 +342,66 @@ var require_http = __commonJS({
       }, ms);
       return controller.signal;
     }
+    function headersWithUserAgent(headers) {
+      if (typeof Headers === "function" && headers instanceof Headers) {
+        var copy = new Headers(headers);
+        if (!copy.get("User-Agent")) copy.set("User-Agent", DEFAULT_UA);
+        return copy;
+      }
+      if (Array.isArray(headers)) {
+        var entries = headers.slice();
+        if (!entries.some(function(entry) {
+          return entry[0].toLowerCase() === "user-agent" && entry[1];
+        })) entries.push(["User-Agent", DEFAULT_UA]);
+        return entries;
+      }
+      var fields = Object.assign({}, headers);
+      if (!Object.keys(fields).some(function(key) {
+        return key.toLowerCase() === "user-agent" && fields[key];
+      })) fields["User-Agent"] = DEFAULT_UA;
+      return fields;
+    }
+    var bodyReaders = ["arrayBuffer", "blob", "bytes", "formData", "json", "text"];
+    function responseWithDeadline(response, run) {
+      if (!response) return response;
+      var methods = /* @__PURE__ */ new Map();
+      return new Proxy(response, {
+        get: function(target, key) {
+          var value = Reflect.get(target, key, target);
+          if (typeof value !== "function" || key === "constructor") return value;
+          if (!methods.has(key)) {
+            methods.set(key, function() {
+              var args = arguments;
+              if (bodyReaders.indexOf(key) !== -1) {
+                return run(function() {
+                  return value.apply(target, args);
+                });
+              }
+              var result = value.apply(target, args);
+              return key === "clone" ? responseWithDeadline(result, run) : result;
+            });
+          }
+          return methods.get(key);
+        }
+      });
+    }
     function fetchWithTimeout(url, options, ms) {
-      ms = ms || 1e4;
-      options = options || {};
-      if (!options.signal) {
-        options.signal = timeoutSignal2(ms);
+      var deadline = Date.now() + (ms || 1e4);
+      var fetchOptions = Object.assign({}, options);
+      fetchOptions.headers = headersWithUserAgent(fetchOptions.headers);
+      var signal = fetchOptions.signal;
+      var controller = !signal && typeof AbortController === "function" ? new AbortController() : null;
+      if (controller) fetchOptions.signal = controller.signal;
+      function run(operation) {
+        return withDeadline(deadline, signal, function(error) {
+          if (controller) controller.abort(error);
+        }, operation);
       }
-      if (!options.headers) {
-        options.headers = {};
-      }
-      if (!options.headers["User-Agent"] && !options.headers["user-agent"]) {
-        options.headers["User-Agent"] = DEFAULT_UA;
-      }
-      return fetch(url, options);
+      return run(function() {
+        return fetch(url, fetchOptions);
+      }).then(function(response) {
+        return responseWithDeadline(response, run);
+      });
     }
     module2.exports = {
       DEFAULT_UA,
@@ -245,6 +415,7 @@ var require_http = __commonJS({
 var require_turkish_series = __commonJS({
   "src/shared/turkish_series.js"(exports2, module2) {
     var TMDB_API_BASE = "https://api.themoviedb.org/3";
+    var TMDB_FETCH_TIMEOUT_MS = 8 * 1e3;
     function normalizeSeriesId2(raw) {
       var out = { id: "", kind: "unknown", season: 0, episode: 0 };
       if (typeof raw !== "string") return out;
@@ -273,7 +444,7 @@ var require_turkish_series = __commonJS({
       }
       return out;
     }
-    function asciiFold(s) {
+    function asciiFold2(s) {
       s = String(s || "");
       try {
         if (typeof s.normalize === "function") s = s.normalize("NFD");
@@ -290,7 +461,7 @@ var require_turkish_series = __commonJS({
       return out;
     }
     function cleanTitle(t) {
-      return asciiFold(String(t || "")).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+      return asciiFold2(String(t || "")).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
     }
     function tokensMatch(a, b) {
       var ta = cleanTitle(a).split(" ").filter(function(x) {
@@ -313,17 +484,43 @@ var require_turkish_series = __commonJS({
     }
     function tmdbJson(url) {
       return __async(this, null, function* () {
+        var controller;
+        var timer;
+        var timeoutError = new Error("TMDB metadata timeout");
         try {
-          var res = yield fetch(url, {
+          controller = typeof AbortController === "function" ? new AbortController() : null;
+          var options = {
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
               "Accept": "application/json"
             }
+          };
+          if (controller) options.signal = controller.signal;
+          var deadline = Date.now() + TMDB_FETCH_TIMEOUT_MS;
+          var timeout = new Promise(function(_, reject) {
+            timer = setTimeout(function() {
+              reject(timeoutError);
+            }, TMDB_FETCH_TIMEOUT_MS);
           });
-          if (!res.ok) return null;
-          return yield res.json();
+          var request = Promise.resolve().then(function() {
+            return fetch(url, options);
+          }).then(function(res) {
+            if (Date.now() >= deadline) throw timeoutError;
+            return res && res.ok ? res.json() : null;
+          });
+          var data = yield Promise.race([request, timeout]);
+          if (Date.now() >= deadline) throw timeoutError;
+          return data;
         } catch (e) {
+          if (e === timeoutError && controller) {
+            try {
+              controller.abort();
+            } catch (abortError) {
+            }
+          }
           return null;
+        } finally {
+          if (timer !== void 0) clearTimeout(timer);
         }
       });
     }
@@ -390,7 +587,13 @@ var require_turkish_series = __commonJS({
         if (!numericId) return out;
         out.numericId = numericId;
         out.type = foundType;
-        var dres = yield tmdbJson(TMDB_API_BASE + "/" + foundType + "/" + numericId + "?api_key=" + key + "&language=tr-TR");
+        var resource = TMDB_API_BASE + "/" + foundType + "/" + numericId;
+        var [dres, ext, trs, alt] = yield Promise.all([
+          tmdbJson(resource + "?api_key=" + key + "&language=tr-TR"),
+          tmdbJson(resource + "/external_ids?api_key=" + key),
+          tmdbJson(resource + "/translations?api_key=" + key),
+          foundType === "movie" ? tmdbJson(resource + "/alternative_titles?api_key=" + key + "&country=TR") : null
+        ]);
         if (dres) {
           name = dres.name || dres.title || name;
           original = dres.original_name || dres.original_title || original;
@@ -400,12 +603,10 @@ var require_turkish_series = __commonJS({
         }
         out.title = name || norm.id;
         out.origTitle = original || name || norm.id;
-        var ext = yield tmdbJson(TMDB_API_BASE + "/" + foundType + "/" + numericId + "/external_ids?api_key=" + key);
         if (ext && ext.imdb_id) {
           out.imdbId = ext.imdb_id;
           out.aliases.push(ext.imdb_id);
         }
-        var trs = yield tmdbJson(TMDB_API_BASE + "/" + foundType + "/" + numericId + "/translations?api_key=" + key);
         if (trs && trs.translations) {
           for (var t = 0; t < trs.translations.length; t++) {
             var trName = trs.translations[t].data && trs.translations[t].data.name;
@@ -414,21 +615,18 @@ var require_turkish_series = __commonJS({
             }
           }
         }
-        if (foundType === "movie") {
-          var alt = yield tmdbJson(TMDB_API_BASE + "/movie/" + numericId + "/alternative_titles?api_key=" + key + "&country=TR");
-          if (alt && alt.titles) {
-            for (var a = 0; a < alt.titles.length; a++) {
-              var tn = alt.titles[a].title;
-              if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
-            }
+        if (alt && alt.titles) {
+          for (var a = 0; a < alt.titles.length; a++) {
+            var tn = alt.titles[a].title;
+            if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
           }
         }
         var seen = {};
-        seen[asciiFold(name)] = true;
-        seen[asciiFold(original)] = true;
+        seen[asciiFold2(name)] = true;
+        seen[asciiFold2(original)] = true;
         var aliases = [];
         for (var k = 0; k < out.aliases.length; k++) {
-          var fa = asciiFold(out.aliases[k]);
+          var fa = asciiFold2(out.aliases[k]);
           if (!fa || seen[fa]) continue;
           seen[fa] = true;
           aliases.push(out.aliases[k]);
@@ -444,8 +642,8 @@ var require_turkish_series = __commonJS({
         t = String(t || "").trim();
         if (!t) return;
         for (var k = 0; k < titles.length; k++) {
-          if (asciiFold(titles[k]) === asciiFold(t)) return;
-          if (asciiFold(titles[k]) === asciiFold(t).replace(/[^a-z0-9]+/g, " ").trim() && asciiFold(t).replace(/[^a-z0-9]+/g, " ").trim() === asciiFold(titles[k]).replace(/[^a-z0-9]+/g, " ").trim()) return;
+          if (asciiFold2(titles[k]) === asciiFold2(t)) return;
+          if (asciiFold2(titles[k]) === asciiFold2(t).replace(/[^a-z0-9]+/g, " ").trim() && asciiFold2(t).replace(/[^a-z0-9]+/g, " ").trim() === asciiFold2(titles[k]).replace(/[^a-z0-9]+/g, " ").trim()) return;
         }
         titles.push(t);
       }
@@ -462,16 +660,17 @@ var require_turkish_series = __commonJS({
       normalizeSeriesId: normalizeSeriesId2,
       resolveSeriesInfo: resolveSeriesInfo2,
       seriesSearchTitles: seriesSearchTitles2,
-      asciiFold
+      asciiFold: asciiFold2
     };
   }
 });
 
 // src/ddizi/index.js
 var { sortStreamsByQuality } = require_quality();
+var { getResolutionFromPath } = require_resolution();
 var { loadConfig, val, wrapAll } = require_config();
 var { timeoutSignal } = require_http();
-var { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require_turkish_series();
+var { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo, asciiFold } = require_turkish_series();
 var _cfgReady = null;
 function cfgReady() {
   if (!_cfgReady) {
@@ -517,7 +716,7 @@ function resolveYouTubeMp4(ytId) {
           if (data.streamingData.hlsManifestUrl) {
             return {
               url: data.streamingData.hlsManifestUrl,
-              quality: "1080p",
+              quality: "",
               isHls: true,
               format: "hls",
               headers: {
@@ -530,7 +729,7 @@ function resolveYouTubeMp4(ytId) {
             if (formats.length > 0) {
               return {
                 url: formats[0].url,
-                quality: formats[0].qualityLabel || "360p",
+                quality: formats[0].qualityLabel || "",
                 isHls: false,
                 format: "mp4",
                 headers: {
@@ -552,8 +751,31 @@ function getValidTmdbKey() {
   }
   return "500330721680edb6d5f7f12ba7cd9023";
 }
-function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
+function matchesYouTubeEpisode(videoTitle, title, season, episode, cumEpisode) {
+  const normalized = asciiFold(videoTitle);
+  const series = asciiFold(title).match(/[a-z0-9]+/g);
+  if (!series) return false;
+  const separator = "[^a-z0-9]*";
+  const seasonMarker = "([1-9]\\d?)\\s*\\.?\\s*(?:sezon|season)";
+  const labeledSeason = normalized.match(new RegExp("(?:^|[^0-9])" + seasonMarker + "\\b"));
+  if (labeledSeason && Number(labeledSeason[1]) !== season) return false;
+  if (!labeledSeason && cumEpisode === null) return false;
+  const num = labeledSeason ? cumEpisode !== null && episode !== cumEpisode ? "(?:" + episode + "|" + cumEpisode + ")" : episode : cumEpisode;
+  const episodeLabel = "(?:" + num + "\\s*\\.?\\s*(?:bolumu?|episode|ep|b)|(?:bolumu?|episode|ep)\\s*[:#-]?\\s*" + num + "|b" + num + ")(?![a-z0-9])";
+  const seriesLabel = series.join("[^a-z0-9]+");
+  const seasonLabel = "(?:" + seasonMarker + separator + ")?";
+  const titleFirst = new RegExp("(?:^|[|\u2013\u2014])" + separator + seriesLabel + separator + seasonLabel + episodeLabel);
+  const episodeFirst = new RegExp("^" + separator + seasonLabel + episodeLabel + separator + seriesLabel + "(?:" + separator + "$|\\s*[|\u2013\u2014-])");
+  return titleFirst.test(normalized) || episodeFirst.test(normalized);
+}
+function logResultOrigin(origin) {
+  if (typeof console !== "undefined" && typeof console.log === "function") {
+    console.log("[DDizi] result origin=" + origin);
+  }
+}
+function resolveOfficialYouTubeFallback(searchTitles, season, episode, cumEpisode) {
   return __async(this, null, function* () {
+    const title = searchTitles[0];
     try {
       const queries = [];
       if (season > 1) {
@@ -594,14 +816,14 @@ function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
               const data = yield pRes.json();
               const duration = parseInt(data.videoDetails && data.videoDetails.lengthSeconds || "0");
               const vTitle = data.videoDetails && data.videoDetails.title || "";
-              if (duration >= 900) {
+              if (duration >= 900 && searchTitles.some((name) => matchesYouTubeEpisode(vTitle, name, season, episode, cumEpisode))) {
                 const streams = [];
                 if (data.streamingData && data.streamingData.hlsManifestUrl) {
                   streams.push({
                     name: "DDizi",
                     title: `\u231C DDizi \u231F | Resmi YouTube HLS (${vTitle.slice(0, 50)})`,
                     url: data.streamingData.hlsManifestUrl,
-                    quality: "1080p",
+                    quality: "",
                     provider: "ddizi",
                     format: "hls",
                     isHls: true,
@@ -615,9 +837,9 @@ function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
                   if (formats.length > 0) {
                     streams.push({
                       name: "DDizi",
-                      title: `\u231C DDizi \u231F | Resmi YouTube MP4 (${formats[0].qualityLabel || "720p"})`,
+                      title: `\u231C DDizi \u231F | Resmi YouTube MP4${formats[0].qualityLabel ? " (" + formats[0].qualityLabel + ")" : ""}`,
                       url: formats[0].url,
-                      quality: formats[0].qualityLabel || "720p",
+                      quality: formats[0].qualityLabel || "",
                       provider: "ddizi",
                       format: "mp4",
                       isHls: false,
@@ -649,6 +871,18 @@ function resolveOfficialYouTubeFallback(title, season, episode, cumEpisode) {
 function ultraClean(str) {
   if (!str) return "";
   return str.toString().toLowerCase().replace(/[ıİ]/g, "i").replace(/[üÜ]/g, "u").replace(/[öÖ]/g, "o").replace(/[şŞ]/g, "s").replace(/[ğĞ]/g, "g").replace(/[çÇ]/g, "c").replace(/[^a-z0-9]/g, "").trim();
+}
+function lastPathSegment(href) {
+  return href.split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop();
+}
+function seriesSlugKey(href) {
+  return ultraClean(lastPathSegment(href).replace(/-(?:\d+-)?son-bolum(?:-|$).*$/i, "").replace(/-izle(?:-|$).*$/i, ""));
+}
+function parseEpisodeLink(href) {
+  const slug = asciiFold(lastPathSegment(href));
+  const match = slug.match(/^(.+?)-sezon-(\d+)-bolumu?-(\d+)(?:-|$)/) || slug.match(/^(.+?)(?:-(\d+)-sezon)?-(\d+)-bolumu?(?:-|$)/);
+  if (!match) return null;
+  return { series: ultraClean(match[1]), season: Number(match[2]) || null, episode: Number(match[3]) };
 }
 function resolveTmdbInfo(id, mediaType) {
   return __async(this, null, function* () {
@@ -813,20 +1047,16 @@ function getMeta(args) {
         }
         const videos = [];
         const seen = /* @__PURE__ */ new Set();
-        const slugPart = (showSlug.split("/")[1] || showSlug).replace(/-\d+-son-bolum.*$/i, "").replace(/-izle.*$/i, "");
-        const baseSlugKey = ultraClean(slugPart);
-        const titleKey = ultraClean(title);
+        const seriesKeys = [seriesSlugKey(showSlug), ultraClean(title)].filter(Boolean);
         for (const ep of epMatches) {
           const epSlug = ep[2];
           if (!epSlug || seen.has(epSlug)) continue;
-          const epTitle = ep[3].replace(/<[^>]+>/g, "").trim();
-          const epClean = ultraClean(epSlug + " " + epTitle);
-          if (baseSlugKey && !epClean.includes(baseSlugKey) && titleKey && !epClean.includes(titleKey)) {
-            continue;
-          }
+          const link = parseEpisodeLink(ep[1]);
+          if (!link || !seriesKeys.includes(link.series)) continue;
           seen.add(epSlug);
-          const epNumMatch = epTitle.match(/(\d+)\s*\.?\s*bölüm/i) || epSlug.match(/-(\d+)-bolum/i);
-          const epNum = epNumMatch ? parseInt(epNumMatch[1]) : 1;
+          const epTitle = ep[3].replace(/<[^>]+>/g, "").trim();
+          const epNumMatch = epTitle.match(/(\d+)\s*\.?\s*bölüm/i);
+          const epNum = epNumMatch ? parseInt(epNumMatch[1]) : link.episode;
           videos.push({
             id: `ddizi:ep:${epSlug.replace(/\/$/, "")}`,
             title: epTitle || `${epNum}. B\xF6l\xFCm`,
@@ -862,6 +1092,7 @@ function extractStreamsFromEpisodePage(epUrl) {
       const epHtml = yield epRes.text();
       const iframes = [...epHtml.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)];
       const streams = [];
+      const origins = /* @__PURE__ */ new Set();
       for (const ifr of iframes) {
         let src = ifr[1];
         if (src.startsWith("//")) src = "https:" + src;
@@ -880,10 +1111,7 @@ function extractStreamsFromEpisodePage(epUrl) {
             if (!vUrl || seenStreamUrls.has(vUrl)) continue;
             seenStreamUrls.add(vUrl);
             if (vUrl.includes("preview/") || vUrl.includes("image/") || vUrl.includes(".svg") || vUrl.includes(".jpg") || vUrl.includes(".png")) continue;
-            let quality = "1080p";
-            if (vUrl.includes("720") || vUrl.includes("itag=22")) quality = "720p";
-            else if (vUrl.includes("480")) quality = "480p";
-            else if (vUrl.includes("360") || vUrl.includes("itag=18")) quality = "360p";
+            const quality = getResolutionFromPath(vUrl);
             let server = "CDN";
             let streamHeaders = { "User-Agent": HEADERS["User-Agent"] };
             if (vUrl.includes("googlevideo")) {
@@ -911,9 +1139,10 @@ function extractStreamsFromEpisodePage(epUrl) {
             }
             var isMp4 = vUrl.toLowerCase().includes(".mp4");
             var isHls = !isMp4;
+            origins.add("episode-direct");
             streams.push({
               name: "DDizi",
-              title: `\u231C DDizi \u231F | ${server} (${quality}${isMp4 ? " MP4" : " HLS"})`,
+              title: `\u231C DDizi \u231F | ${server} (${quality ? quality + " " : ""}${isMp4 ? "MP4" : "HLS"})`,
               url: vUrl,
               quality,
               provider: "ddizi",
@@ -942,11 +1171,12 @@ function extractStreamsFromEpisodePage(epUrl) {
                     "User-Agent": HEADERS["User-Agent"],
                     "Referer": "https://www.dailymotion.com/"
                   };
+                  origins.add("episode-dailymotion");
                   streams.push({
                     name: "DDizi",
-                    title: "\u231C DDizi \u231F | Dailymotion (1080p HLS)",
+                    title: "\u231C DDizi \u231F | Dailymotion (HLS)",
                     url: autoQual.url,
-                    quality: "1080p",
+                    quality: "",
                     provider: "ddizi",
                     headers: dmHeaders,
                     format: "hls",
@@ -974,7 +1204,8 @@ function extractStreamsFromEpisodePage(epUrl) {
               foundDirectMp4 = true;
               const isHls2 = !!ytStream.isHls;
               const fmt = ytStream.format || (isHls2 ? "hls" : "mp4");
-              const qualLabel = isHls2 ? `HLS (${ytStream.quality})` : `MP4 (${ytStream.quality})`;
+              const qualLabel = (isHls2 ? "HLS" : "MP4") + (ytStream.quality ? " (" + ytStream.quality + ")" : "");
+              origins.add("episode-youtube-innertube");
               streams.push({
                 name: "DDizi",
                 title: `\u231C DDizi \u231F | YouTube ${qualLabel}`,
@@ -1010,12 +1241,14 @@ function extractStreamsFromEpisodePage(epUrl) {
                   if (formats.length > 0) {
                     formats.sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
                     for (const fmt of formats.slice(0, 1)) {
+                      const quality = fmt.qualityLabel || fmt.quality || "";
                       const ytHeaders = { "User-Agent": HEADERS["User-Agent"] };
+                      origins.add("episode-youtube-invidious");
                       streams.push({
                         name: "DDizi",
-                        title: `\u231C DDizi \u231F | YouTube MP4 (${fmt.qualityLabel || fmt.quality || "HD"})`,
+                        title: `\u231C DDizi \u231F | YouTube MP4${quality ? " (" + quality + ")" : ""}`,
                         url: fmt.url,
-                        quality: fmt.qualityLabel || "720p",
+                        quality,
                         provider: "ddizi",
                         headers: ytHeaders,
                         format: "mp4",
@@ -1034,6 +1267,7 @@ function extractStreamsFromEpisodePage(epUrl) {
                 }
               }
             }
+            origins.add("episode-youtube-native");
             streams.push({
               name: "DDizi",
               title: "\u231C DDizi \u231F | YouTube (Resmi Yay\u0131n)",
@@ -1059,6 +1293,7 @@ function extractStreamsFromEpisodePage(epUrl) {
               if (vUrl.includes("preview/") || vUrl.includes(".jpg") || vUrl.includes(".png")) continue;
               const fallbackHeaders = { "User-Agent": HEADERS["User-Agent"], "Referer": src };
               const isHls2 = vUrl.includes(".m3u8");
+              origins.add("episode-generic-iframe");
               streams.push({
                 name: "DDizi",
                 title: `\u231C DDizi \u231F | Alternatif Kaynak`,
@@ -1087,6 +1322,7 @@ function extractStreamsFromEpisodePage(epUrl) {
         const bQ = parseInt(b.quality) || 0;
         return bQ - aQ;
       });
+      for (const origin of origins) logResultOrigin(origin);
       return streams;
     } catch (e) {
       return [];
@@ -1105,12 +1341,14 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         );
       }
       if (typeof tmdbIdOrArgs === "string" && tmdbIdOrArgs.startsWith("ddizi:show:")) {
+        yield cfgReady();
         const showMeta = yield getMeta(tmdbIdOrArgs);
         if (showMeta && showMeta.meta && Array.isArray(showMeta.meta.videos) && showMeta.meta.videos.length > 0) {
           return yield getStreams(showMeta.meta.videos[0].id);
         }
       }
       if (typeof tmdbIdOrArgs === "string" && tmdbIdOrArgs.startsWith("ddizi:ep:")) {
+        yield cfgReady();
         const slug = tmdbIdOrArgs.replace("ddizi:ep:", "");
         const epUrl = `${BASE_URL}/izle/${slug}`;
         return yield extractStreamsFromEpisodePage(epUrl);
@@ -1131,24 +1369,23 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
           episode = parseInt(parts[2]) || episode;
         }
       }
-      const info = yield resolveTmdbInfo(id, mediaType || "tv");
+      const [info] = yield Promise.all([resolveTmdbInfo(id, mediaType || "tv"), cfgReady()]);
       const searchTitles = seriesSearchTitles(info);
       if (nrm.kind === "title" && searchTitles.length === 0) searchTitles.push(String(id || "").trim());
       if (searchTitles.length === 0) return [];
       let cumEpisode = episode;
-      if (season > 1 && Array.isArray(info.seasons) && info.seasons.length > 0) {
-        let sum = 0;
+      if (season > 1) {
+        const seasons = Array.isArray(info.seasons) ? info.seasons : [];
         for (let s = 1; s < season; s++) {
-          const sObj = info.seasons.find((x) => x.season_number === s);
-          if (sObj && sObj.episode_count) {
-            sum += sObj.episode_count;
+          const previous = seasons.find((entry) => entry && entry.season_number === s);
+          if (!previous || !Number.isInteger(previous.episode_count) || previous.episode_count <= 0) {
+            cumEpisode = null;
+            break;
           }
-        }
-        if (sum > 0) {
-          cumEpisode = sum + episode;
+          cumEpisode += previous.episode_count;
         }
       }
-      const candidateNums = cumEpisode !== episode ? [cumEpisode, episode] : [episode];
+      const candidateNums = cumEpisode !== null && cumEpisode !== episode ? [cumEpisode, episode] : [episode];
       for (const title of searchTitles) {
         const form = new URLSearchParams();
         form.append("arama", title);
@@ -1162,36 +1399,12 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         const leftMatch = sHtml.match(/class=["']left_sidebar["'][^>]*>([\s\S]*?)class=["']right_sidebar["']/i);
         const contentToSearch = leftMatch ? leftMatch[1] : sHtml.split(/class=["']right_sidebar["']/i)[0] || sHtml;
         const seriesMatches = [...contentToSearch.matchAll(/<a href="([^"]*\/diziler\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
-        if (seriesMatches.length === 0) continue;
         const cleanTarget = ultraClean(title);
-        let matchedShowHref = null;
-        for (const sm of seriesMatches) {
-          const sName = (sm[3] || "").replace(/<[^>]+>/g, "").trim();
-          if (ultraClean(sName) === cleanTarget) {
-            matchedShowHref = sm[1];
-            break;
-          }
-        }
-        if (!matchedShowHref) {
-          for (const sm of seriesMatches) {
-            const slugOnly = (sm[2] || "").split("/").pop().replace(/-\d+-son-bolum.*$/i, "").replace(/-izle.*$/i, "");
-            if (ultraClean(slugOnly) === cleanTarget) {
-              matchedShowHref = sm[1];
-              break;
-            }
-          }
-        }
-        if (!matchedShowHref) {
-          for (const sm of seriesMatches) {
-            const sName = (sm[3] || "").replace(/<[^>]+>/g, "").trim();
-            const sClean = ultraClean(sName);
-            if (sClean.startsWith(cleanTarget) || cleanTarget.startsWith(sClean) || sClean.includes(cleanTarget)) {
-              matchedShowHref = sm[1];
-              break;
-            }
-          }
-        }
-        if (!matchedShowHref) continue;
+        if (!cleanTarget) continue;
+        const matchedShow = seriesMatches.find((sm) => ultraClean(sm[2].replace(/<[^>]+>/g, "")) === cleanTarget) || seriesMatches.find((sm) => seriesSlugKey(sm[1]) === cleanTarget);
+        if (!matchedShow) continue;
+        let matchedShowHref = matchedShow[1];
+        const seriesKeys = [cleanTarget, seriesSlugKey(matchedShowHref)].filter(Boolean);
         if (!matchedShowHref.startsWith("http")) matchedShowHref = `${BASE_URL}${matchedShowHref.startsWith("/") ? "" : "/"}${matchedShowHref}`;
         const pagesToCheck = [matchedShowHref];
         const showRes = yield fetch(matchedShowHref, { headers: HEADERS });
@@ -1214,30 +1427,30 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
           const pageContent = leftEpMatch ? leftEpMatch[1] : pHtml.split(/class=["']right_sidebar["']/i)[0] || pHtml;
           const epMatches = [...pageContent.matchAll(/<a href="([^"]*\/izle\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
           if (epMatches.length === 0) continue;
+          const links = [];
+          for (const ep of epMatches) {
+            const identity = parseEpisodeLink(ep[1]);
+            if (!identity || !seriesKeys.includes(identity.series)) continue;
+            const label = asciiFold(ep[2].replace(/<[^>]+>/g, " "));
+            const labeledSeason = label.match(/\b(\d+)\s*\.?\s*sezon\b/);
+            const labeledEpisode = label.match(/\b(\d+)\s*\.?\s*bolumu?\b/) || label.match(/\bbolumu?\s*[:#-]?\s*(\d+)\b/);
+            if (labeledSeason && Number(labeledSeason[1]) !== season) continue;
+            if (identity.season && identity.season !== season) continue;
+            const hasSeason = identity.season || labeledSeason;
+            if (labeledEpisode) {
+              const number = Number(labeledEpisode[1]);
+              if (number !== identity.episode && (!hasSeason || !candidateNums.includes(number))) continue;
+            }
+            if (identity.episode === cumEpisode || identity.episode === episode && hasSeason) {
+              links.push({ href: ep[1], episode: identity.episode });
+            }
+          }
           let targetEpUrl = null;
           for (const num of candidateNums) {
-            const epRegex = new RegExp(`(?:^|\\s|\\.|-)${num}\\.?\\s*b\xF6l\xFCm`, "i");
-            const epSlugRegex = new RegExp(`-${num}-bolum`, "i");
-            for (const ep of epMatches) {
-              const epText = ep[2].replace(/<[^>]+>/g, "").toLowerCase().replace(/\s+/g, " ");
-              const epLink = ep[1].toLowerCase();
-              if (epRegex.test(epText) || epSlugRegex.test(epLink)) {
-                targetEpUrl = ep[1];
-                break;
-              }
-            }
-            if (targetEpUrl) break;
-          }
-          if (!targetEpUrl && season > 1) {
-            const seasonRegex = new RegExp(`${season}\\.?\\s*sezon\\s*${episode}\\.?\\s*b\xF6l\xFCm`, "i");
-            const seasonSlugRegex = new RegExp(`(?:sezon-${season}-bolum-${episode}|${season}-sezon-${episode}-bolum)`, "i");
-            for (const ep of epMatches) {
-              const epText = ep[2].replace(/<[^>]+>/g, "").toLowerCase().replace(/\s+/g, " ");
-              const epLink = ep[1].toLowerCase();
-              if (seasonRegex.test(epText) || seasonSlugRegex.test(epLink)) {
-                targetEpUrl = ep[1];
-                break;
-              }
+            const match = links.find((link) => link.episode === num);
+            if (match) {
+              targetEpUrl = match.href;
+              break;
             }
           }
           if (targetEpUrl) {
@@ -1248,9 +1461,9 @@ function getStreams(tmdbIdOrArgs, mediaType, seasonNum, episodeNum) {
         }
       }
       if (searchTitles.length > 0) {
-        const mainTitle = searchTitles[0];
-        const ytStreams = yield resolveOfficialYouTubeFallback(mainTitle, season, episode, cumEpisode);
+        const ytStreams = yield resolveOfficialYouTubeFallback(searchTitles, season, episode, cumEpisode);
         if (ytStreams && ytStreams.length > 0) {
+          logResultOrigin("youtube-search");
           return ytStreams;
         }
       }
@@ -1271,7 +1484,8 @@ if (typeof getStreams === "function") {
 }
 var _origGetStreams;
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = wrapAll({ getStreams, getMeta, getCatalog }, cfgReady);
+  module.exports = wrapAll({ getMeta, getCatalog }, cfgReady);
+  module.exports.getStreams = getStreams;
 }
 if (typeof globalThis !== "undefined") {
   globalThis.getStreams = getStreams;
