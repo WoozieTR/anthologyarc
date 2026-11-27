@@ -3,7 +3,26 @@
  * Built from src/tvdiziler/index.js
  * Build: v1.8.44 (anthology build system)
  */
+var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __commonJS = (cb, mod) => function __require() {
   try {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
@@ -110,7 +129,36 @@ var require_resolution = __commonJS({
       }
       return label;
     }
-    module2.exports = { getResolutionFromPath: getResolutionFromPath2 };
+    function getDeclaredSourceMetadata2(text, url) {
+      var _a, _b, _c;
+      const result = { quality: "", language: "" };
+      if (typeof text !== "string" || typeof url !== "string" || !url) return result;
+      const objects = /\{[^{}]{0,4096}\}/g;
+      const qualities = /* @__PURE__ */ new Set();
+      const languages = /* @__PURE__ */ new Set();
+      let object;
+      while ((object = objects.exec(text)) !== null) {
+        const fields = /* @__PURE__ */ Object.create(null);
+        const pairs = /(?:^|[,{])\s*["']?([a-zA-Z_][a-zA-Z0-9_]*)["']?\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|(\d+)(?=\s*[,}]))/g;
+        let pair;
+        while ((pair = pairs.exec(object[0])) !== null) {
+          fields[pair[1].toLowerCase()] = String((_c = (_b = (_a = pair[2]) != null ? _a : pair[3]) != null ? _b : pair[4]) != null ? _c : "").replace(/\\\//g, "/").trim();
+        }
+        if (fields.file !== url && fields.src !== url) continue;
+        for (const key of ["label", "quality", "height"]) {
+          const value = fields[key] || "";
+          const match = /^(2160|1440|1080|720|540|480|360|240)p?$/i.exec(value);
+          if (match) qualities.add(match[1] + "p");
+        }
+        const audio = (fields.audiolanguage || fields.audio_language || "").toLowerCase();
+        const codes = { tr: "TR", tur: "TR", en: "EN", eng: "EN", de: "DE", deu: "DE", fr: "FR", fra: "FR", es: "ES", spa: "ES" };
+        if (Object.prototype.hasOwnProperty.call(codes, audio)) languages.add(codes[audio]);
+      }
+      if (qualities.size === 1) result.quality = Array.from(qualities)[0];
+      if (languages.size === 1) result.language = "Ses: " + Array.from(languages)[0];
+      return result;
+    }
+    module2.exports = { getResolutionFromPath: getResolutionFromPath2, getDeclaredSourceMetadata: getDeclaredSourceMetadata2 };
   }
 });
 
@@ -688,7 +736,7 @@ var require_turkish_series = __commonJS({
 
 // src/tvdiziler/index.js
 var { sortStreamsByQuality } = require_quality();
-var { getResolutionFromPath } = require_resolution();
+var { getResolutionFromPath, getDeclaredSourceMetadata } = require_resolution();
 var { loadConfig, val, wrapAll } = require_config();
 var { safeFetch } = require_http_request();
 var { asciiFold, normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require_turkish_series();
@@ -1282,7 +1330,8 @@ function extractStreamsFromEpisodePage(epUrl) {
                   if (!seenUrls.has(streamUrl)) {
                     seenUrls.add(streamUrl);
                     var isHls = streamUrl.includes(".m3u8");
-                    var quality = getResolutionFromPath(streamUrl);
+                    var metadata = getDeclaredSourceMetadata(plyHtml, streamUrl);
+                    var quality = metadata.quality || getResolutionFromPath(streamUrl);
                     var streamHeaders = {
                       "User-Agent": HEADERS["User-Agent"]
                     };
@@ -1294,11 +1343,12 @@ function extractStreamsFromEpisodePage(epUrl) {
                     } else {
                       streamHeaders["Referer"] = BASE_URL + "/";
                     }
-                    streams.push({
+                    streams.push(__spreadProps(__spreadValues({
                       name: "TvDiziler",
                       title: "\u231C TvDiziler \u231F | " + label + " (" + (isHls ? "HLS" : "MP4") + (quality ? " " + quality : "") + ")",
                       url: streamUrl,
-                      quality,
+                      quality
+                    }, metadata.language ? { language: metadata.language } : {}), {
                       format: isHls ? "hls" : "mp4",
                       isHls,
                       provider: "tvdiziler",
@@ -1309,7 +1359,7 @@ function extractStreamsFromEpisodePage(epUrl) {
                           request: streamHeaders
                         }
                       }
-                    });
+                    }));
                   }
                 }
               }

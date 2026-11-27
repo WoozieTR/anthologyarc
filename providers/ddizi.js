@@ -129,7 +129,36 @@ var require_resolution = __commonJS({
       }
       return label;
     }
-    module2.exports = { getResolutionFromPath: getResolutionFromPath2 };
+    function getDeclaredSourceMetadata2(text, url) {
+      var _a, _b, _c;
+      const result = { quality: "", language: "" };
+      if (typeof text !== "string" || typeof url !== "string" || !url) return result;
+      const objects = /\{[^{}]{0,4096}\}/g;
+      const qualities = /* @__PURE__ */ new Set();
+      const languages = /* @__PURE__ */ new Set();
+      let object;
+      while ((object = objects.exec(text)) !== null) {
+        const fields = /* @__PURE__ */ Object.create(null);
+        const pairs = /(?:^|[,{])\s*["']?([a-zA-Z_][a-zA-Z0-9_]*)["']?\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|(\d+)(?=\s*[,}]))/g;
+        let pair;
+        while ((pair = pairs.exec(object[0])) !== null) {
+          fields[pair[1].toLowerCase()] = String((_c = (_b = (_a = pair[2]) != null ? _a : pair[3]) != null ? _b : pair[4]) != null ? _c : "").replace(/\\\//g, "/").trim();
+        }
+        if (fields.file !== url && fields.src !== url) continue;
+        for (const key of ["label", "quality", "height"]) {
+          const value = fields[key] || "";
+          const match = /^(2160|1440|1080|720|540|480|360|240)p?$/i.exec(value);
+          if (match) qualities.add(match[1] + "p");
+        }
+        const audio = (fields.audiolanguage || fields.audio_language || "").toLowerCase();
+        const codes = { tr: "TR", tur: "TR", en: "EN", eng: "EN", de: "DE", deu: "DE", fr: "FR", fra: "FR", es: "ES", spa: "ES" };
+        if (Object.prototype.hasOwnProperty.call(codes, audio)) languages.add(codes[audio]);
+      }
+      if (qualities.size === 1) result.quality = Array.from(qualities)[0];
+      if (languages.size === 1) result.language = "Ses: " + Array.from(languages)[0];
+      return result;
+    }
+    module2.exports = { getResolutionFromPath: getResolutionFromPath2, getDeclaredSourceMetadata: getDeclaredSourceMetadata2 };
   }
 });
 
@@ -675,7 +704,7 @@ var require_turkish_series = __commonJS({
 
 // src/ddizi/index.js
 var { sortStreamsByQuality } = require_quality();
-var { getResolutionFromPath } = require_resolution();
+var { getResolutionFromPath, getDeclaredSourceMetadata } = require_resolution();
 var { loadConfig, val, wrapAll } = require_config();
 var { timeoutSignal } = require_http();
 var { normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo, asciiFold } = require_turkish_series();
@@ -1119,7 +1148,8 @@ function extractStreamsFromEpisodePage(epUrl) {
             if (!vUrl || seenStreamUrls.has(vUrl)) continue;
             seenStreamUrls.add(vUrl);
             if (vUrl.includes("preview/") || vUrl.includes("image/") || vUrl.includes(".svg") || vUrl.includes(".jpg") || vUrl.includes(".png")) continue;
-            const quality = getResolutionFromPath(vUrl);
+            const metadata = getDeclaredSourceMetadata(pHtml, vUrl);
+            const quality = metadata.quality || getResolutionFromPath(vUrl);
             let server = "CDN";
             let streamHeaders = { "User-Agent": HEADERS["User-Agent"] };
             if (vUrl.includes("googlevideo")) {
@@ -1148,11 +1178,12 @@ function extractStreamsFromEpisodePage(epUrl) {
             var isMp4 = vUrl.toLowerCase().includes(".mp4");
             var isHls = !isMp4;
             origins.add("episode-direct");
-            streams.push({
+            streams.push(__spreadProps(__spreadValues({
               name: "DDizi",
               title: `\u231C DDizi \u231F | ${server} (${quality ? quality + " " : ""}${isMp4 ? "MP4" : "HLS"})`,
               url: vUrl,
-              quality,
+              quality
+            }, metadata.language ? { language: metadata.language } : {}), {
               provider: "ddizi",
               headers: streamHeaders,
               format: isMp4 ? "mp4" : "hls",
@@ -1163,7 +1194,7 @@ function extractStreamsFromEpisodePage(epUrl) {
                   request: streamHeaders
                 }
               }
-            });
+            }));
           }
         }
         if (src.includes("daily.php") || src.includes("dailymotion.com")) {
@@ -1301,11 +1332,15 @@ function extractStreamsFromEpisodePage(epUrl) {
               if (vUrl.includes("preview/") || vUrl.includes(".jpg") || vUrl.includes(".png")) continue;
               const fallbackHeaders = { "User-Agent": HEADERS["User-Agent"], "Referer": src };
               const isHls2 = vUrl.includes(".m3u8");
+              const metadata = getDeclaredSourceMetadata(pHtml, vUrl);
+              const quality = metadata.quality || getResolutionFromPath(vUrl);
               origins.add("episode-generic-iframe");
-              streams.push({
+              streams.push(__spreadProps(__spreadValues({
                 name: "DDizi",
-                title: `\u231C DDizi \u231F | Alternatif Kaynak`,
+                title: `\u231C DDizi \u231F | Alternatif Kaynak${quality ? " (" + quality + ")" : ""}`,
                 url: vUrl,
+                quality
+              }, metadata.language ? { language: metadata.language } : {}), {
                 provider: "ddizi",
                 headers: fallbackHeaders,
                 format: isHls2 ? "hls" : "mp4",
@@ -1316,7 +1351,7 @@ function extractStreamsFromEpisodePage(epUrl) {
                     request: fallbackHeaders
                   }
                 }
-              });
+              }));
             }
           } catch (e) {
           }
