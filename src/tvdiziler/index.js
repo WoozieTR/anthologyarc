@@ -1,5 +1,5 @@
 const { sortStreamsByQuality } = require('../shared/quality.js');
-const { getResolutionFromPath } = require('../shared/resolution.js');
+const { getResolutionFromPath, getDeclaredSourceMetadata } = require('../shared/resolution.js');
 const { loadConfig, val, wrapAll } = require('../shared/config.js');
 const { safeFetch } = require('../shared/http_request.js');
 const { asciiFold, normalizeSeriesId, seriesSearchTitles, resolveSeriesInfo } = require('../shared/turkish_series.js');
@@ -636,7 +636,8 @@ async function extractStreamsFromEpisodePage(epUrl) {
                                 if (!seenUrls.has(streamUrl)) {
                                     seenUrls.add(streamUrl);
                                     var isHls = streamUrl.includes('.m3u8');
-                                    var quality = getResolutionFromPath(streamUrl);
+                                    var metadata = getDeclaredSourceMetadata(plyHtml, streamUrl);
+                                    var quality = metadata.quality || getResolutionFromPath(streamUrl);
 
                                     var streamHeaders = {
                                         'User-Agent': HEADERS['User-Agent']
@@ -655,6 +656,7 @@ async function extractStreamsFromEpisodePage(epUrl) {
                                         title: '⌜ TvDiziler ⌟ | ' + label + ' (' + (isHls ? 'HLS' : 'MP4') + (quality ? ' ' + quality : '') + ')',
                                         url: streamUrl,
                                         quality: quality,
+                                        ...(metadata.language ? { language: metadata.language } : {}),
                                         format: isHls ? 'hls' : 'mp4',
                                         isHls: isHls,
                                         provider: 'tvdiziler',
