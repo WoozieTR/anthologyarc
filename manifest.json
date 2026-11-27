@@ -92,7 +92,7 @@
         "series"
       ],
       "filename": "providers/youtube_dizifilm.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8",
@@ -289,7 +289,7 @@
         "stream"
       ],
       "filename": "providers/M3U/ListM3u.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "mp4",
         "mkv",
@@ -840,7 +840,7 @@
         "channel"
       ],
       "filename": "providers/anthology_haber.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -884,7 +884,7 @@
         "channel"
       ],
       "filename": "providers/anthology_ulusal.js",
-      "enabled": true,
+      "enabled": false,
       "formats": [
         "hls",
         "m3u8"
@@ -1549,7 +1549,7 @@
     {
       "author": "falsisdev",
       "version": "1.8.42",
-      "enabled": true,
+      "enabled": false,
       "supportsExternalPlayer": true,
       "id": "anthology_diziler",
       "name": "Anthology Dizi",
@@ -1583,7 +1583,7 @@
     {
       "author": "falsisdev",
       "version": "1.8.42",
-      "enabled": true,
+      "enabled": false,
       "supportsExternalPlayer": true,
       "id": "puhutv",
       "name": "PuhuTV",
