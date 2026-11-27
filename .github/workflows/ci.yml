@@ -31,6 +31,8 @@ jobs:
         run: npm run build:providers
       - name: Offline ARC regression tests
         run: node --test scripts/test_build_exit_code.js scripts/test_config_cache.test.js scripts/test_shared_http.test.js scripts/test_turkish_series.test.js scripts/test_ddizi_matching.test.js scripts/test_tvdiziler_matching.test.js scripts/test_parallel_config_tmdb.test.js scripts/test_http_lifecycle.test.js scripts/test_media_api_provider.test.js scripts/test_media_api_build.test.js
+      - name: TR Dizi Izle offline identity audit
+        run: node --test scripts/test_trdiziizle_identity.test.js
       - name: Run Stremio addon validation
         run: npm run test:addon
       - name: Save generated bundles for integration review
