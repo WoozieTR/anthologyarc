@@ -2,41 +2,43 @@ name: Build & Addon Validation CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, arc, arc-next ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, arc, arc-next ]
+
+permissions:
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-
       - name: Install dependencies
         run: npm ci
-
       - name: Validate JSON configs
         run: |
-          node -e "
-            for (const f of ['package.json', 'config.json', 'manifest.json', 'stremio/manifest.json']) {
-              JSON.parse(require('fs').readFileSync(f, 'utf8'));
-            }
-            console.log('All JSON configs valid.');
-          "
-
+          node -e "for (const f of ['package.json', 'config.json', 'manifest.json', 'stremio/manifest.json']) JSON.parse(require('fs').readFileSync(f, 'utf8'));"
       - name: Build providers from src
         run: npm run build:providers
-
-      - name: Verify build output matches committed bundles
-        run: git diff --exit-code providers/
-
+      - name: Offline ARC regression tests
+        run: node --test scripts/test_build_exit_code.js scripts/test_config_cache.test.js scripts/test_shared_http.test.js scripts/test_turkish_series.test.js scripts/test_ddizi_matching.test.js scripts/test_tvdiziler_matching.test.js scripts/test_parallel_config_tmdb.test.js scripts/test_http_lifecycle.test.js scripts/test_media_api_provider.test.js scripts/test_media_api_build.test.js
       - name: Run Stremio addon validation
         run: npm run test:addon
+      - name: Save generated bundles for integration review
+        if: github.ref == 'refs/heads/arc-next'
+        uses: actions/upload-artifact@v4
+        with:
+          name: arc-next-provider-bundles
+          path: providers/
+          if-no-files-found: error
+      - name: Verify build output matches committed bundles
+        run: git diff --exit-code providers/ && test -z "$(git ls-files --others --exclude-standard providers/)"

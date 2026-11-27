@@ -3,7 +3,7 @@
 /**
  * Build script for Anthology Nuvio Providers
  * 
- * Bundles each provider from src/<provider>/ into a single file at providers/<provider>.js
+ * Bundles source providers and configured media API providers using esbuild.
  * 
  * Usage:
  *   node build.js              # Build all providers
@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 
 const pkg = require('./package.json');
+const { mediaApiProviders } = require('./config.js');
 
 const srcDir = path.join(__dirname, 'src');
 const outDir = path.join(__dirname, 'providers');
@@ -36,42 +37,74 @@ const EXTERNAL_MODULES = [
 const OUTPUT_MAP = {
     'm3u_list': path.join(outDir, 'M3U', 'ListM3u.js')
 };
+const MEDIA_API_ENTRY = path.join(srcDir, 'shared', 'media_api_entry.js');
+const MEDIA_API_FIELDS = new Set(['id', 'name', 'apiOrigin', 'streamsPath', 'streamOrigins', 'trustManualRedirects']);
 
-function getProvidersToBuild() {
-    const args = process.argv.slice(2).filter(arg => !arg.startsWith('-'));
-
-    if (args.length > 0) {
-        return args;
+function validateProviderId(id) {
+    if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,251}$/.test(id) ||
+        /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/.test(id)) {
+        throw new TypeError(`Invalid provider ID: ${JSON.stringify(id)}`);
     }
-
-    if (!fs.existsSync(srcDir)) {
-        console.error('❌ src/ directory not found.');
-        process.exit(1);
-    }
-
-    return fs.readdirSync(srcDir, { withFileTypes: true })
-        .filter(d => d.isDirectory() && d.name !== 'shared')
-        .map(d => d.name);
 }
 
-async function buildProvider(providerName, options = {}) {
-    const providerDir = path.join(srcDir, providerName);
-    const entryPoint = path.join(providerDir, 'index.js');
-    const outFile = OUTPUT_MAP[providerName] || path.join(outDir, `${providerName}.js`);
+function validateMediaApiOutput(outFile) {
+    const root = fs.lstatSync(outDir, { throwIfNoEntry: false });
+    if (!root) return;
+    if (!root.isDirectory()) throw new TypeError('Unsafe media API output path: providers/');
+
+    const target = fs.lstatSync(outFile, { throwIfNoEntry: false });
+    if (target && (!target.isFile() || target.nlink > 1)) {
+        throw new TypeError(`Unsafe media API output path: ${path.relative(__dirname, outFile)}`);
+    }
+}
+
+function registerMediaApiProviders(sourceProviders) {
+    if (!Array.isArray(mediaApiProviders)) throw new TypeError('mediaApiProviders must be an array');
+
+    const registered = new Map();
+    if (mediaApiProviders.length === 0) return registered;
+
+    const { createMediaApiProvider } = require('./src/shared/media_api_provider.js');
+    const reserved = new Set(['shared', ...Object.keys(OUTPUT_MAP), ...sourceProviders.map(id => id.toLowerCase())]);
+    for (const [index, definition] of mediaApiProviders.entries()) {
+        if (!definition || typeof definition !== 'object' || Array.isArray(definition) ||
+            Object.keys(definition).some(key => !MEDIA_API_FIELDS.has(key))) {
+            throw new TypeError(`Invalid mediaApiProviders[${index}] definition or unsupported field`);
+        }
+        const { id, ...config } = definition;
+        validateProviderId(id);
+        if (reserved.has(id) || registered.has(id)) throw new TypeError(`Duplicate or reserved provider ID: ${id}`);
+        try {
+            createMediaApiProvider(config);
+        } catch (err) {
+            throw new TypeError(`Invalid media API configuration for ${id}: ${err.message}`);
+        }
+
+        // A validated ID always produces one filename directly under providers/.
+        const outFile = path.join(outDir, `${id}.js`);
+        validateMediaApiOutput(outFile);
+        registered.set(id, { config, outFile });
+    }
+    return registered;
+}
+
+async function buildProvider(providerName, options, mediaApi) {
+    const entryPoint = mediaApi ? MEDIA_API_ENTRY : path.join(srcDir, providerName, 'index.js');
+    const outFile = mediaApi ? mediaApi.outFile :
+        (Object.hasOwn(OUTPUT_MAP, providerName) ? OUTPUT_MAP[providerName] : path.join(outDir, `${providerName}.js`));
+    const entryLabel = path.relative(__dirname, entryPoint).split(path.sep).join('/');
 
     if (!fs.existsSync(entryPoint)) {
-        console.warn(`⚠️  Skipping ${providerName}: no src/${providerName}/index.js found`);
+        console.warn(`⚠️  Skipping ${providerName}: no ${entryLabel} found`);
         return false;
     }
 
-    const outFolder = path.dirname(outFile);
-    if (!fs.existsSync(outFolder)) {
-        fs.mkdirSync(outFolder, { recursive: true });
-    }
-
     try {
+        if (mediaApi) validateMediaApiOutput(outFile);
+        fs.mkdirSync(path.dirname(outFile), { recursive: true });
         await esbuild.build({
             entryPoints: [entryPoint],
+            ...(mediaApi && { define: { MEDIA_API_PROVIDER_CONFIG: JSON.stringify(mediaApi.config) } }),
             bundle: true,
             outfile: outFile,
             format: 'cjs',
@@ -83,7 +116,7 @@ async function buildProvider(providerName, options = {}) {
             banner: {
                 js: `/**
  * Anthology Provider: ${providerName}
- * Built from src/${providerName}/index.js
+ * Built from ${entryLabel}
  * Build: v${pkg.version} (anthology build system)
  */`
             },
@@ -109,7 +142,16 @@ async function main() {
     const shouldMinify = args.includes('--minify');
     const isWatch = args.includes('--watch');
 
-    const providers = getProvidersToBuild();
+    const selected = args.filter(arg => !arg.startsWith('-'));
+    for (const id of selected) validateProviderId(id);
+    if (new Set(selected).size !== selected.length) throw new TypeError('Duplicate provider ID in build arguments');
+
+    const sourceProviders = fs.readdirSync(srcDir, { withFileTypes: true })
+        .filter(d => d.isDirectory() && d.name !== 'shared')
+        .map(d => d.name);
+    const mediaApis = registerMediaApiProviders(sourceProviders);
+    const providers = selected.length ? selected : [...sourceProviders, ...mediaApis.keys()];
+    const build = id => buildProvider(id, { minify: shouldMinify }, mediaApis.get(id));
 
     if (providers.length === 0) {
         console.log('No providers found in src/ directory.');
@@ -123,12 +165,14 @@ async function main() {
     let failed = 0;
 
     for (const provider of providers) {
-        const result = await buildProvider(provider, { minify: shouldMinify });
+        const result = await build(provider);
         if (result) success++;
         else failed++;
     }
 
     console.log(`\n✨ Done! ${success} built, ${failed} failed\n`);
+
+    if (!isWatch && failed > 0) process.exitCode = 1;
 
     if (isWatch) {
         console.log('👀 Watching src/ for changes... (Press Ctrl+C to stop)');
@@ -138,9 +182,9 @@ async function main() {
                 const parts = filename.split(path.sep);
                 if (parts[0] === 'shared') {
                     // Rebuild all
-                    for (const p of providers) buildProvider(p, { minify: shouldMinify });
+                    for (const p of providers) build(p);
                 } else if (parts[0]) {
-                    buildProvider(parts[0], { minify: shouldMinify });
+                    build(parts[0]);
                 }
             }
         });
