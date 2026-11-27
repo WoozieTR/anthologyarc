@@ -770,10 +770,15 @@ function verifyYouTubeTitleMatch(videoTitle, showTitle, season, episode) {
   var epStr = String(parseInt(episode, 10) || 1);
   var epBoundary = new RegExp("(?:^|\\D)0*" + epStr + "(?:\\s*\\.\\s*bolum|\\s*bolum|\\s*b\\b)|\\be0*" + epStr + "(?:\\D|$)", "i");
   if (!epBoundary.test(cleanVideo)) return false;
-  if (season > 1) {
-    var sMatch = cleanVideo.match(/(\d+)\s*\.?\s*sezon/i);
-    if (sMatch && parseInt(sMatch[1], 10) !== parseInt(season, 10)) return false;
+  var requestedSeason = parseInt(season, 10) || 1;
+  var seasonPattern = /\b(?:(\d+)\s*\.?\s*sezon|sezon\s*(\d+))\b/gi;
+  var seasonMatch;
+  var hasSeason = false;
+  while ((seasonMatch = seasonPattern.exec(cleanVideo)) !== null) {
+    hasSeason = true;
+    if (parseInt(seasonMatch[1] || seasonMatch[2], 10) !== requestedSeason) return false;
   }
+  if (requestedSeason > 1 && !hasSeason) return false;
   return true;
 }
 function resolveOfficialYouTubeFallback(info, season, episode) {
