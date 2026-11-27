@@ -17,6 +17,7 @@
  */
 
 var TMDB_API_BASE = 'https://api.themoviedb.org/3';
+var TMDB_FETCH_TIMEOUT_MS = 8 * 1000;
 
 /**
  * Normalize a raw id coming from Nuvio/Stremio into { id, kind, season, episode }.
@@ -89,16 +90,42 @@ function tokensMatch(a, b) {
 }
 
 async function tmdbJson(url) {
+  var controller;
+  var timer;
+  var timeoutError = new Error('TMDB metadata timeout');
   try {
-    var res = await fetch(url, {
+    controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var options = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'application/json'
       }
+    };
+    if (controller) options.signal = controller.signal;
+
+    var deadline = Date.now() + TMDB_FETCH_TIMEOUT_MS;
+    var timeout = new Promise(function (_, reject) {
+      timer = setTimeout(function () { reject(timeoutError); }, TMDB_FETCH_TIMEOUT_MS);
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (e) { return null; }
+    var request = Promise.resolve().then(function () {
+      return fetch(url, options);
+    }).then(function (res) {
+      if (Date.now() >= deadline) throw timeoutError;
+      return res && res.ok ? res.json() : null;
+    });
+
+    var data = await Promise.race([request, timeout]);
+    // Synchronous parsing can delay the timer callback.
+    if (Date.now() >= deadline) throw timeoutError;
+    return data;
+  } catch (e) {
+    if (e === timeoutError && controller) {
+      try { controller.abort(); } catch (abortError) {}
+    }
+    return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
 }
 
 function pickResults(data, preferTv) {
@@ -178,8 +205,15 @@ async function resolveSeriesInfo(rawId, mediaType, apiKey) {
   out.numericId = numericId;
   out.type = foundType;
 
-  // Details (tr-TR gives Turkish primary names for most Turkish series).
-  var dres = await tmdbJson(TMDB_API_BASE + '/' + foundType + '/' + numericId + '?api_key=' + key + '&language=tr-TR');
+  var resource = TMDB_API_BASE + '/' + foundType + '/' + numericId;
+  var [dres, ext, trs, alt] = await Promise.all([
+    tmdbJson(resource + '?api_key=' + key + '&language=tr-TR'),
+    tmdbJson(resource + '/external_ids?api_key=' + key),
+    tmdbJson(resource + '/translations?api_key=' + key),
+    foundType === 'movie' ? tmdbJson(resource + '/alternative_titles?api_key=' + key + '&country=TR') : null
+  ]);
+
+  // Apply results in order so alias precedence is independent of completion order.
   if (dres) {
     name = dres.name || dres.title || name;
     original = dres.original_name || dres.original_title || original;
@@ -191,12 +225,10 @@ async function resolveSeriesInfo(rawId, mediaType, apiKey) {
   out.origTitle = original || name || norm.id;
 
   // External ids (imdb) + translations (Turkish aliases) + alternative titles.
-  var ext = await tmdbJson(TMDB_API_BASE + '/' + foundType + '/' + numericId + '/external_ids?api_key=' + key);
   if (ext && ext.imdb_id) {
     out.imdbId = ext.imdb_id;
     out.aliases.push(ext.imdb_id);
   }
-  var trs = await tmdbJson(TMDB_API_BASE + '/' + foundType + '/' + numericId + '/translations?api_key=' + key);
   if (trs && trs.translations) {
     for (var t = 0; t < trs.translations.length; t++) {
       var trName = trs.translations[t].data && trs.translations[t].data.name;
@@ -205,13 +237,10 @@ async function resolveSeriesInfo(rawId, mediaType, apiKey) {
       }
     }
   }
-  if (foundType === 'movie') {
-    var alt = await tmdbJson(TMDB_API_BASE + '/movie/' + numericId + '/alternative_titles?api_key=' + key + '&country=TR');
-    if (alt && alt.titles) {
-      for (var a = 0; a < alt.titles.length; a++) {
-        var tn = alt.titles[a].title;
-        if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
-      }
+  if (alt && alt.titles) {
+    for (var a = 0; a < alt.titles.length; a++) {
+      var tn = alt.titles[a].title;
+      if (tn && tn !== name && tn !== original && out.aliases.indexOf(tn) === -1) out.aliases.push(tn);
     }
   }
 
